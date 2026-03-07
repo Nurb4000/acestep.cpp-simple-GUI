@@ -1,0 +1,17 @@
+This is for use with acestep.cpp    https://github.com/ServeurpersoCom/acestep.cpp
+
+need to download and copy:
+
+models/
+	acestep-5Hz-lm-4B-Q8_0.gguf
+	acestep-v15-turbo-Q8_0.gguf
+	Qwen3-Embedding-0.6B-Q8_0.gguf
+	vae-BF16.gguf
+
+Compile ( or download ) executables then drop them in bin folder
+bin/
+	ace-qwen3
+	dit-vae
+	quantize
+	
+	

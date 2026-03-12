@@ -12,5 +12,6 @@ Be sure to grab dependencies from the requirements.txt file, which is minimal as
 
 And once again, obligatory screenshot:
 
-<img width="1015" height="921" alt="image" src="https://github.com/user-attachments/assets/a72c7b31-c72b-49f5-a965-6fbb7b2e1050" />
+<img width="1091" height="885" alt="image" src="https://github.com/user-attachments/assets/f40457de-62d9-468a-ab5b-3d7420abe091" />
+
 

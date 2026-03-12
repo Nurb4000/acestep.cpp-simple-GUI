@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-900">
+<html lang="en" class="h-full bg-[#121212]">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,20 +8,27 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="/static/script.js"></script>
 <style>
-    /* Base styles */
+    /* Base styles - matching master.html color scheme */
     :root {
         --text-primary: #ffffff;
-        --text-secondary: #e2e8f0;
-        --bg-primary: #1a202c;
-        --bg-secondary: #2d3748;
-        --bg-input: #2d3748;
-        --border-color: #4a5568;
-        --focus-ring: #4299e1;
+        --text-secondary: #f0f0f0;
+        --bg-primary: #121212;
+        --bg-secondary: #1e1e1e;
+        --bg-input: #2d2d2d;
+        --border-color: #444;
+        --focus-ring: rgba(130, 130, 130, 0.25);
         --placeholder-color: #a0aec0;
+        --btn-primary: #1a73e8;
+        --btn-primary-hover: #1557b0;
+        --btn-secondary: #5f6368;
+        --btn-secondary-hover: #5f6368;
+        --btn-success: #28a745;
+        --btn-success-hover: #218838;
+        --alert-danger: #dc3545;
     }
 
     body {
-        @apply bg-gray-900;
+        @apply bg-[#121212];
         color: var(--text-primary);
     }
 
@@ -34,25 +41,26 @@
     .text-input, 
     .number-input, 
     .textarea {
-        @apply w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500;
+        @apply w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2;
         background-color: var(--bg-input);
         border-color: var(--border-color);
         color: var(--text-primary) !important;
+        box-shadow: 0 0 0 0.25rem var(--focus-ring);
     }
 
     /* Text inputs */
     .text-input {
-        @apply bg-gray-800;
+        @apply bg-[#2d2d2d];
     }
 
     /* Number inputs */
     .number-input {
-        @apply bg-gray-800;
+        @apply bg-[#2d2d2d];
     }
 
     /* Textareas */
     .textarea {
-        @apply bg-gray-800;
+        @apply bg-[#2d2d2d];
         min-height: 8rem; /* Default height for textareas */
     }
 
@@ -83,11 +91,30 @@
     }
 
     .btn-primary {
-        @apply bg-blue-600 text-white hover:bg-blue-700;
+        background-color: var(--btn-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background-color: var(--btn-primary-hover);
     }
 
     .btn-secondary {
-        @apply bg-gray-700 text-white hover:bg-gray-600;
+        background-color: var(--btn-secondary);
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background-color: var(--btn-secondary-hover);
+    }
+
+    .btn-success {
+        background-color: var(--btn-success);
+        color: white;
+    }
+
+    .btn-success:hover {
+        background-color: var(--btn-success-hover);
     }
 
     /* Error message */
@@ -102,15 +129,15 @@
     }
 
     ::-webkit-scrollbar-track {
-        @apply bg-gray-800;
+        @apply bg-[#2d2d2d];
     }
 
     ::-webkit-scrollbar-thumb {
-        @apply bg-gray-600 rounded;
+        @apply bg-[#444] rounded;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-        @apply bg-gray-500;
+        @apply bg-[#555];
     }
 
     /* Force text color in all inputs */
@@ -134,13 +161,20 @@
         -webkit-text-fill-color: var(--text-primary) !important;
         -webkit-box-shadow: 0 0 0 30px var(--bg-input) inset !important;
     }
+
+    /* Card styling to match master.html */
+    .card-style {
+        background-color: var(--bg-secondary);
+        border: 1px solid #333;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
 </style>
 </head>
 <body class="h-full text-white">
     <div class="min-h-full flex flex-col">
-        <header class="bg-gray-800 shadow">
+        <header class="bg-[#1e1e1e] border-b border-[#333] shadow">
             <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                <h1 class="text-3xl font-bold">Music Gen</h1>
+                <h1 class="text-3xl font-bold text-white">Music Gen</h1>
             </div>
         </header>
         
@@ -151,49 +185,49 @@
         <!-- Caption with LLM checkbox - spans 3 columns -->
         <div class="space-y-2 lg:col-span-3">
             <div class="flex items-center justify-between">
-                <label class="block text-sm font-medium text-white">Caption</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">Caption</label>
                 <div class="flex items-center space-x-2">
-                    <label class="text-sm text-white">With LLM</label>
-                    <input type="checkbox" id="use_llm" name="use_llm" class="rounded text-blue-600">
+                    <label class="text-sm text-[#f0f0f0]">With LLM</label>
+                    <input type="checkbox" id="use_llm" name="use_llm" class="rounded text-[#1a73e8]">
                 </div>
             </div>
             <textarea 
                 id="caption" 
                 name="caption" 
-                class="textarea w-full bg-gray-800 text-white" 
+                class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]" 
                 placeholder="Enter caption...">{{ defaults.caption }}</textarea>
         </div>
 
         <!-- Duration - 1 column -->
         <div class="space-y-2">
-            <label class="block text-sm font-medium text-white">Duration</label>
+            <label class="block text-sm font-medium text-[#f0f0f0]">Duration</label>
             <input 
                 type="number" 
                 id="duration" 
                 name="duration" 
                 step="0.1" 
-                class="number-input w-full bg-gray-800 text-white" 
+                class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                 value="{{ defaults.duration }}">
         </div>
     </div>
 
     <!-- Lyrics - full width -->
     <div class="space-y-2">
-        <label class="block text-sm font-medium text-white">Lyrics</label>
+        <label class="block text-sm font-medium text-[#f0f0f0]">Lyrics</label>
         <textarea 
             id="lyrics" 
             name="lyrics" 
-            class="textarea w-full bg-gray-800 text-white" 
+            class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]" 
             placeholder="Enter lyrics...">{{ defaults.lyrics }}</textarea>
     </div>
 
     <!-- Negative Prompt - full width -->
     <div class="space-y-2">
-        <label class="block text-sm font-medium text-white">Negative Prompt</label>
+        <label class="block text-sm font-medium text-[#f0f0f0]">Negative Prompt</label>
         <textarea 
             id="lm_negative_prompt" 
             name="lm_negative_prompt" 
-            class="textarea w-full bg-gray-800 text-white" 
+            class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]" 
             placeholder="Enter negative prompt...">{{ defaults.lm_negative_prompt }}</textarea>
     </div>
 
@@ -202,33 +236,33 @@
         <!-- Column 1 -->
         <div class="space-y-4">
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">BPM</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">BPM</label>
                 <input 
                     type="number" 
                     id="bpm" 
                     name="bpm" 
-                    class="number-input w-full bg-gray-800 text-white" 
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.bpm }}">
             </div>
             
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">Vocal Language</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">Vocal Language</label>
                 <input 
                     type="text" 
                     id="vocal_language" 
                     name="vocal_language" 
-                    class="text-input w-full bg-gray-800 text-white" 
+                    class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.vocal_language }}">
             </div>
             
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">LM CFG Scale</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">LM CFG Scale</label>
                 <input 
                     type="number" 
                     id="lm_cfg_scale" 
                     name="lm_cfg_scale" 
                     step="0.1" 
-                    class="number-input w-full bg-gray-800 text-white" 
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.lm_cfg_scale }}">
             </div>
         </div>
@@ -236,33 +270,33 @@
         <!-- Column 2 -->
         <div class="space-y-4">
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">Keyscale</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">Keyscale</label>
                 <input 
                     type="text" 
                     id="keyscale" 
                     name="keyscale" 
-                    class="text-input w-full bg-gray-800 text-white" 
+                    class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.keyscale }}">
             </div>
             
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">Seed</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">Seed</label>
                 <input 
                     type="number" 
                     id="seed" 
                     name="seed" 
-                    class="number-input w-full bg-gray-800 text-white" 
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.seed }}">
             </div>
             
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">LM Top P</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">LM Top P</label>
                 <input 
                     type="number" 
                     id="lm_top_p" 
                     name="lm_top_p" 
                     step="0.01" 
-                    class="number-input w-full bg-gray-800 text-white" 
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.lm_top_p }}">
             </div>
         </div>
@@ -270,33 +304,33 @@
         <!-- Column 3 -->
         <div class="space-y-4">
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">Time Signature</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">Time Signature</label>
                 <input 
                     type="text" 
                     id="timesignature" 
                     name="timesignature" 
-                    class="text-input w-full bg-gray-800 text-white" 
+                    class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.timesignature }}">
             </div>
             
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">LM Temperature</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">LM Temperature</label>
                 <input 
                     type="number" 
                     id="lm_temperature" 
                     name="lm_temperature" 
                     step="0.01" 
-                    class="number-input w-full bg-gray-800 text-white" 
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.lm_temperature }}">
             </div>
             
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">LM Top K</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">LM Top K</label>
                 <input 
                     type="number" 
                     id="lm_top_k" 
                     name="lm_top_k" 
-                    class="number-input w-full bg-gray-800 text-white" 
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.lm_top_k }}">
             </div>
         </div>
@@ -304,33 +338,33 @@
         <!-- Column 4 -->
         <div class="space-y-4">
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">Audio Codes</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">Audio Codes</label>
                 <input 
                     type="text" 
                     id="audio_codes" 
                     name="audio_codes" 
-                    class="text-input w-full bg-gray-800 text-white" 
+                    class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.audio_codes }}">
             </div>
             
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">Inference Steps</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">Inference Steps</label>
                 <input 
                     type="number" 
                     id="inference_steps" 
                     name="inference_steps" 
-                    class="number-input w-full bg-gray-800 text-white" 
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.inference_steps }}">
             </div>
             
             <div class="space-y-2">
-                <label class="block text-sm font-medium text-white">Guidance Scale</label>
+                <label class="block text-sm font-medium text-[#f0f0f0]">Guidance Scale</label>
                 <input 
                     type="number" 
                     id="guidance_scale" 
                     name="guidance_scale" 
                     step="0.1" 
-                    class="number-input w-full bg-gray-800 text-white" 
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                     value="{{ defaults.guidance_scale }}">
             </div>
         </div>
@@ -339,24 +373,24 @@
     <!-- Bottom Row: Shift and Audio Cover Strength -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="space-y-2">
-            <label class="block text-sm font-medium text-white">Shift</label>
+            <label class="block text-sm font-medium text-[#f0f0f0]">Shift</label>
             <input 
                 type="number" 
                 id="shift" 
                 name="shift" 
                 step="0.1" 
-                class="number-input w-full bg-gray-800 text-white" 
+                class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                 value="{{ defaults.shift }}">
         </div>
         
         <div class="space-y-2">
-            <label class="block text-sm font-medium text-white">Audio Cover Strength</label>
+            <label class="block text-sm font-medium text-[#f0f0f0]">Audio Cover Strength</label>
             <input 
                 type="number" 
                 id="audio_cover_strength" 
                 name="audio_cover_strength" 
                 step="0.01" 
-                class="number-input w-full bg-gray-800 text-white" 
+                class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" 
                 value="{{ defaults.audio_cover_strength }}">
         </div>
     </div>
@@ -365,19 +399,19 @@
         <button 
             type="submit" 
             id="generateBtn" 
-            class="btn btn-primary w-full text-white bg-blue-600 hover:bg-blue-700">
+            class="btn btn-primary w-full text-white bg-[#1a73e8] hover:bg-[#1557b0]">
             Generate Music
         </button>
     </div>
 </form>
 
             <!-- Results Section -->
-            <div id="results" class="max-w-4xl mx-auto mt-8 hidden">
-                <h2 class="text-xl font-semibold mb-4">Generated Music</h2>
-                <div class="bg-gray-800 p-4 rounded-lg">
+            <div id="results" class="max-w-4xl mx-auto mt-8 hidden card-style rounded-lg p-4">
+                <h2 class="text-xl font-semibold mb-4 text-white">Generated Music</h2>
+                <div>
                     <div id="audioPlayer" class="mb-4"></div>
                     <div class="flex space-x-4">
-                        <button id="downloadBtn" class="btn btn-primary">Download All Files</button>
+                        <button id="downloadBtn" class="btn btn-success">Download All Files</button>
                         <button id="newGenerationBtn" class="btn btn-secondary">New Generation</button>
                     </div>
                 </div>
@@ -385,17 +419,17 @@
 
             <!-- Loading Indicator -->
             <div id="loading" class="max-w-4xl mx-auto mt-8 hidden text-center">
-                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                <p class="mt-2">Generating music, please wait...</p>
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1a73e8]"></div>
+                <p class="mt-2 text-[#f0f0f0]">Generating music, please wait...</p>
             </div>
 
             <!-- Error Message -->
-            <div id="error" class="max-w-4xl mx-auto mt-8 p-4 bg-red-900 text-white rounded-lg hidden"></div>
+            <div id="error" class="max-w-4xl mx-auto mt-8 p-4 bg-[#dc3545] text-white rounded-lg hidden"></div>
         </main>
 
-        <footer class="bg-gray-800 py-4">
+        <footer class="bg-[#1e1e1e] border-t border-[#333] py-4">
             <div class="max-w-7xl mx-auto px-4 text-center">
-                <p class="text-sm">courtesy IDS, 2026</p>
+                <p class="text-sm text-[#e0e0e0]">Copyright IDS, 2026</p>
             </div>
         </footer>
     </div>

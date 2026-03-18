@@ -152,7 +152,7 @@ def generate():
         if use_llm:
             logger.info("Running with LLM pipeline")
             # First command
-            cmd1 = f"./bin/ace-qwen3 --request {json_path} --model ./models/acestep-5Hz-lm-4B-Q8_0.gguf"
+            cmd1 = f"./bin/ace-lm --request {json_path} --model ./models/acestep-5Hz-lm-4B-Q8_0.gguf"
             success, output = run_command(cmd1)
             
             if not success:
@@ -161,7 +161,7 @@ def generate():
                 return jsonify({
                     "status": "error", 
                     "message": f"LLM generation failed: {output}",
-                    "details": "Check if the ace-qwen3 executable and model files are in the correct location."
+                    "details": "Check if the ace-lm executable and model files are in the correct location."
                 })
             
             # Second command
@@ -175,7 +175,7 @@ def generate():
                     "details": error_msg
                 })
             
-            cmd2 = f"./bin/dit-vae --request {intermediate_json} --text-encoder ./models/Qwen3-Embedding-0.6B-Q8_0.gguf --dit ./models/acestep-v15-turbo-Q8_0.gguf --vae ./models/vae-BF16.gguf"
+            cmd2 = f"./bin/ace-synth --request {intermediate_json} --text-encoder ./models/Qwen3-Embedding-0.6B-Q8_0.gguf --dit ./models/acestep-v15-turbo-Q8_0.gguf --vae ./models/vae-BF16.gguf --wav"
             success, output = run_command(cmd2)
             
             if success:
@@ -194,7 +194,7 @@ def generate():
                     })
         else:
             logger.info("Running without LLM pipeline")
-            cmd = f"./bin/dit-vae --request {json_path} --text-encoder ./models/Qwen3-Embedding-0.6B-Q8_0.gguf --dit ./models/acestep-v15-turbo-Q8_0.gguf --vae ./models/vae-BF16.gguf"
+            cmd = f"./bin/ace-synth --request {json_path} --text-encoder ./models/Qwen3-Embedding-0.6B-Q8_0.gguf --dit ./models/acestep-v15-turbo-Q8_0.gguf --vae ./models/vae-BF16.gguf --wav"
             success, output = run_command(cmd)
             
             if success:

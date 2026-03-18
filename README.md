@@ -1,5 +1,9 @@
 # acestep.cpp-simple-GUI
 
+
+***warning this is now broken due to changes upstream. Once that stablizes ill redo things here***
+
+
 Another super simple web interface for something because im too lazy to type.
 This simply creates the json and passes it into the command line to run the generations. It presents all the variables to you, with defaults. Also lets you select with LLM or without.  Has a preview feature, and will let you download the jsons and output as a zip.
 

@@ -1,58 +1,59 @@
+// script.js
 $(document).ready(function() {
     let currentBaseFilename = '';
     let currentUseLLM = false;
-    
-    // Handle form submission
+    let currentUseRefAudio = false;
+
     $('#musicForm').on('submit', function(e) {
         e.preventDefault();
-        
-        // Reset state
         $('#results').addClass('hidden');
         $('#error').addClass('hidden').html('');
-        
-        // Show loading
         $('#loading').removeClass('hidden');
         $('#generateBtn').prop('disabled', true);
-        
-        // Get form data
-        const formData = {
-            use_llm: $('#use_llm').is(':checked'),
-            caption: $('#caption').val(),
-            lyrics: $('#lyrics').val(),
-            duration: parseFloat($('#duration').val()) || 0,
-            lm_negative_prompt: $('#lm_negative_prompt').val(),
-            bpm: parseInt($('#bpm').val()) || 0,
-            keyscale: $('#keyscale').val(),
-            timesignature: $('#timesignature').val(),
-            vocal_language: $('#vocal_language').val(),
-            seed: parseInt($('#seed').val()) || -1,
-            lm_temperature: parseFloat($('#lm_temperature').val()) || 0.85,
-            lm_cfg_scale: parseFloat($('#lm_cfg_scale').val()) || 2.0,
-            lm_top_p: parseFloat($('#lm_top_p').val()) || 0.9,
-            lm_top_k: parseInt($('#lm_top_k').val()) || 0,
-            audio_codes: $('#audio_codes').val(),
-            inference_steps: parseInt($('#inference_steps').val()) || 8,
-            guidance_scale: parseFloat($('#guidance_scale').val()) || 0.0,
-            shift: parseFloat($('#shift').val()) || 3.0,
-            audio_cover_strength: parseFloat($('#audio_cover_strength').val()) || 0.5
-        };
-        
-        console.log("Submitting form data:", formData);
-        
-        // Send request to server
+
+        const formData = new FormData(this);
+        const useLLM = $('#use_llm').is(':checked');
+        const useRefAudio = $('#use_reference_audio').is(':checked');
+
+        // Explicitly set flags
+        formData.set('use_llm', useLLM ? 'true' : 'false');
+        formData.set('use_reference_audio', useRefAudio ? 'true' : 'false');
+
+        // Ensure caption is always included (even if empty)
+        const caption = $('#caption').val();
+        formData.set('caption', caption);  // Explicitly set
+
+        // Append file only if reference audio is selected AND a file exists
+        const fileInput = document.getElementById('reference_audio');
+        if (useRefAudio && fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            formData.append('reference_audio', file);
+            console.log("Appended reference audio to form:", file.name);
+        } else if (useRefAudio && fileInput.files.length === 0) {
+            showError("Reference audio is selected but no file was chosen.");
+            $('#loading').addClass('hidden');
+            $('#generateBtn').prop('disabled', false);
+            return;
+        }
+
+        // Log what’s being sent
+        for (let [key, value] of formData.entries()) {
+            console.log(`${key}:`, value);
+        }
+
         $.ajax({
             url: '/generate',
             type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(formData),
+            data: formData,
+            processData: false,
+            contentType: false,
             success: function(response) {
                 console.log("Server response:", response);
-                
                 if (response.status === 'success') {
                     currentBaseFilename = response.base_filename;
                     currentUseLLM = response.use_llm || false;
-                    
-                    // Create audio player
+                    currentUseRefAudio = response.use_reference_audio || false;
+
                     const audioPlayer = `
                         <audio controls class="w-full">
                             <source src="${response.wav_url}" type="audio/wav">
@@ -60,13 +61,14 @@ $(document).ready(function() {
                         </audio>
                     `;
                     $('#audioPlayer').html(audioPlayer);
-                    
-                    // Set download button href with use_llm parameter
+
                     $('#downloadBtn').off('click').on('click', function() {
-                        window.location.href = `${response.download_url}?use_llm=${currentUseLLM}`;
+                        const params = new URLSearchParams();
+                        params.append('use_llm', currentUseLLM);
+                        params.append('use_reference_audio', currentUseRefAudio);
+                        window.location.href = `${response.download_url}?${params.toString()}`;
                     });
-                    
-                    // Show results
+
                     $('#results').removeClass('hidden');
                 } else {
                     showError(response.message || 'An error occurred during generation.');
@@ -99,18 +101,18 @@ $(document).ready(function() {
             }
         });
     });
-    
-    // Handle new generation button
+
     $('#newGenerationBtn').on('click', function() {
         $('#results').addClass('hidden');
-        // Reset form to default values
         $('#musicForm')[0].reset();
+        currentBaseFilename = '';
+        currentUseLLM = false;
+        currentUseRefAudio = false;
     });
-    
+
     function showError(message) {
         const errorDiv = $('#error');
         errorDiv.html(message).removeClass('hidden');
-        // Scroll to error message
         $('html, body').animate({
             scrollTop: errorDiv.offset().top - 100
         }, 500);

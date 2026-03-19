@@ -1,4 +1,4 @@
-# app.py
+# app.py (UPDATED)
 import os
 import json
 import subprocess
@@ -293,18 +293,24 @@ def preview(filename):
 
 @app.route('/download/<base_filename>')
 def download(base_filename):
+    # Check if the request includes LLM and reference audio flags
     use_llm = request.args.get('use_llm', 'false').lower() == 'true'
     use_reference_audio = request.args.get('use_reference_audio', 'false').lower() == 'true'
 
     zip_filename = f"{base_filename}.zip"
     zip_path = os.path.join(app.config['UPLOAD_FOLDER'], zip_filename)
 
-    files_to_zip = [f"{base_filename}.json"]
+    # Define files to include based on whether LLM was used
+    files_to_zip = [f"{base_filename}.json"]  # Always include the main JSON
     if use_llm:
-        files_to_zip.extend([f"{base_filename}0.json", f"{base_filename}00.wav"])
+        files_to_zip.extend([
+            f"{base_filename}0.json",  # Intermediate JSON
+            f"{base_filename}00.wav"   # Output WAV
+        ])
     else:
-        files_to_zip.append(f"{base_filename}0.wav")
+        files_to_zip.append(f"{base_filename}0.wav")  # Output WAV
 
+    # Check which files actually exist
     existing_files = []
     missing_files = []
     for file in files_to_zip:
@@ -314,6 +320,7 @@ def download(base_filename):
         else:
             missing_files.append(file)
 
+    # If any required files are missing, return an error
     if missing_files:
         error_msg = f"Missing files: {', '.join(missing_files)}"
         logger.error(error_msg)
@@ -323,6 +330,7 @@ def download(base_filename):
             "details": error_msg
         }), 404
 
+    # Create ZIP file
     try:
         with zipfile.ZipFile(zip_path, 'w') as zipf:
             for file in existing_files:
@@ -337,18 +345,23 @@ def download(base_filename):
             "details": error_msg
         }), 500
 
+    # Fix: Always pass None for reference_audio_filename — it's not available here!
     @after_this_request
     def remove_file(response):
         try:
+            # Remove ZIP file
             if os.path.exists(zip_path):
                 os.remove(zip_path)
                 logger.info(f"Removed ZIP file: {zip_path}")
-            cleanup_files(base_filename, use_llm, reference_audio_filename)
+
+            # Safe cleanup: pass None instead of undefined variable
+            cleanup_files(base_filename, use_llm, None)  # 👈 No error now!
         except Exception as e:
             logger.error(f"Error removing files: {e}")
         return response
 
-    return send_file(zip_path, as_attachment=True, download_name=zip_filename)   # flask > 2.0
-    #return send_file(zip_path, as_attachment=True, attachment_filename=zip_filename)   # flask < 2.0
+     #return send_file(zip_path, as_attachment=True, download_name=zip_filename)  #flask > 2.0 
+    return send_file(zip_path, as_attachment=True, attachment_filename=zip_filename) #flask < 2.0
+
 if __name__ == '__main__':
     app.run(debug=False, port=3000, host="0.0.0.0")

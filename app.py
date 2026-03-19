@@ -348,7 +348,7 @@ def download(base_filename):
             logger.error(f"Error removing files: {e}")
         return response
 
-    return send_file(zip_path, as_attachment=True, download_name=zip_filename)
-
+    return send_file(zip_path, as_attachment=True, download_name=zip_filename)   # flask > 2.0
+    #return send_file(zip_path, as_attachment=True, attachment_filename=zip_filename)   # flask < 2.0
 if __name__ == '__main__':
     app.run(debug=False, port=3000, host="0.0.0.0")

@@ -11,9 +11,12 @@ Then get the minimum required ggufs and drop them into the models folder. ( also
 
 Be sure to grab dependencies from the requirements.txt file, which is minimal as always - flask, pygame, python-dotenv
 
-And once again, obligatory screenshot:
+And once again, obligatory ( updated for current featureset ) screenshot:
 
-<img width="787" height="740" alt="image" src="https://github.com/user-attachments/assets/a2809ae0-84f7-4f81-b9c8-1127d40c01e1" />
+<img width="963" height="885" alt="image" src="https://github.com/user-attachments/assets/33d7e495-2e4c-4345-94e5-80eb81124a13" />
+
+
+
 
 
 

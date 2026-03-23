@@ -1,3 +1,410 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#121212]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Gen</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        /* Base styles - matching master.html color scheme */
+        :root {
+            --text-primary: #ffffff;
+            --text-secondary: #f0f0f0;
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --bg-input: #2d2d2d;
+            --border-color: #444;
+            --focus-ring: rgba(130, 130, 130, 0.25);
+            --placeholder-color: #a0aec0;
+            --btn-primary: #1a73e8;
+            --btn-primary-hover: #1557b0;
+            --btn-secondary: #5f6368;
+            --btn-secondary-hover: #5f6368;
+            --btn-success: #28a745;
+            --btn-success-hover: #218838;
+            --alert-danger: #dc3545;
+        }
+        body {
+            @apply bg-[#121212];
+            color: var(--text-primary);
+        }
+        /* Ensure all text is white and visible */
+        input, textarea, select {
+            color: var(--text-primary) !important;
+        }
+        /* Input and textarea base styles */
+        .text-input,   
+        .number-input,   
+        .textarea {
+            @apply w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2;
+            background-color: var(--bg-input);
+            border-color: var(--border-color);
+            color: var(--text-primary) !important;
+            box-shadow: 0 0 0 0.25rem var(--focus-ring);
+        }
+        /* Text inputs */
+        .text-input {
+            @apply bg-[#2d2d2d];
+        }
+        /* Number inputs */
+        .number-input {
+            @apply bg-[#2d2d2d];
+        }
+        /* Textareas */
+        .textarea {
+            @apply bg-[#2d2d2d];
+            min-height: 8rem; /* Default height for textareas */
+        }
+        /* Make caption, lyrics, and negative prompt taller */
+        #caption.textarea,  
+        #lyrics.textarea,  
+        #lm_negative_prompt.textarea {
+            min-height: 10rem;
+        }
+        /* Placeholder text */
+        ::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+            color: var(--placeholder-color) !important;
+            opacity: 1; /* Firefox */
+        }
+        :-ms-input-placeholder { /* Internet Explorer 10-11 */
+            color: var(--placeholder-color) !important;
+        }
+        ::-ms-input-placeholder { /* Microsoft Edge */
+            color: var(--placeholder-color) !important;
+        }
+        /* Buttons */
+        .btn {
+            @apply px-4 py-2 rounded-md font-medium transition-colors duration-200;
+        }
+        .btn-primary {  
+            background-color: var(--btn-primary);
+            color: white;
+        }
+        .btn-primary:hover {  
+            background-color: var(--btn-primary-hover);
+        }
+        .btn-secondary {  
+            background-color: var(--btn-secondary);
+            color: white;
+        }
+        .btn-secondary:hover {  
+            background-color: var(--btn-secondary-hover);
+        }
+        .btn-success {  
+            background-color: var(--btn-success);
+            color: white;
+        }
+        .btn-success:hover {  
+            background-color: var(--btn-success-hover);
+        }
+        /* Error message */
+        .error-message {  
+            @apply text-red-400 text-sm mt-1;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {  
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {  
+            @apply bg-[#2d2d2d];
+        }
+        ::-webkit-scrollbar-thumb {  
+            @apply bg-[#444] rounded;
+        }
+        ::-webkit-scrollbar-thumb:hover {  
+            @apply bg-[#555];
+        }
+        /* Force text color in all inputs */
+        input[type="text"],   
+        input[type="number"],   
+        input[type="email"],   
+        input[type="password"],   
+        input[type="search"],   
+        input[type="tel"],   
+        input[type="url"],   
+        textarea,   
+        select {  
+            color: var(--text-primary) !important;
+        }
+        /* Override any browser-specific styles */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,   
+        input:-webkit-autofill:focus,   
+        input:-webkit-autofill:active {  
+            -webkit-text-fill-color: var(--text-primary) !important;
+            -webkit-box-shadow: 0 0 0 30px var(--bg-input) inset !important;
+        }
+        /* Card styling to match master.html */
+        .card-style {  
+            background-color: var(--bg-secondary);
+            border: 1px solid #333;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="h-full text-white">
+    <div class="min-h-full flex flex-col">  
+        <header class="bg-[#1e1e1e] border-b border-[#333] shadow">  
+            <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">  
+                <h1 class="text-3xl font-bold text-white">Music Gen</h1>  
+            </div>  
+        </header>  
+        <main class="flex-1 overflow-y-auto p-6">  
+           <form id="musicForm" class="max-w-7xl mx-auto space-y-6">  
+    <!-- Top Row: Caption (wider) and Duration -->  
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">  
+        <!-- Caption with LLM button - spans 3 columns -->  
+        <div class="space-y-2 lg:col-span-3">  
+            <div class="flex items-center justify-between">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">Caption</label>  
+                <button type="button" id="enhanceBtn" class="btn btn-primary text-sm">Enhance via LLM</button>  
+            </div>  
+            <textarea   
+                id="caption"   
+                name="caption"   
+                class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                placeholder="Enter caption...">{{ defaults.caption }}</textarea>  
+        </div>  
+        <!-- Duration - 1 column -->  
+        <div class="space-y-2">  
+            <label class="block text-sm font-medium text-[#f0f0f0]">Duration</label>  
+            <input   
+                type="number"   
+                id="duration"   
+                name="duration"   
+                step="0.1"   
+                class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                value="{{ defaults.duration }}">  
+        </div>  
+    </div>  
+    <!-- Reference Audio - inserted below Duration, spans 3 columns to match caption -->  
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">  
+        <div class="space-y-2 lg:col-span-3">  
+            <div class="flex items-center justify-between">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">Reference Audio</label>  
+                <div class="flex items-center space-x-2">  
+                    <label class="text-sm text-[#f0f0f0]">Use Reference</label>  
+                    <input type="checkbox" id="use_reference_audio" name="use_reference_audio" class="rounded text-[#1a73e8]">  
+                </div>  
+            </div>  
+            <input   
+                type="file"   
+                id="reference_audio"   
+                name="reference_audio"   
+                accept="audio/*,.wav,.mp3,.flac"   
+                class="w-full px-3 py-2 rounded-md border bg-[#2d2d2d] text-white border-[#444]">  
+        </div>  
+        <!-- Empty column to maintain grid alignment -->  
+        <div class="lg:col-span-1"></div>  
+    </div>  
+    <!-- Lyrics - full width -->  
+    <div class="space-y-2">  
+        <label class="block text-sm font-medium text-[#f0f0f0]">Lyrics</label>  
+        <textarea   
+            id="lyrics"   
+            name="lyrics"   
+            class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]"   
+            placeholder="Enter lyrics...">{{ defaults.lyrics }}</textarea>  
+    </div>  
+    <!-- Negative Prompt - full width -->  
+    <div class="space-y-2">  
+        <label class="block text-sm font-medium text-[#f0f0f0]">Negative Prompt</label>  
+        <textarea   
+            id="lm_negative_prompt"   
+            name="lm_negative_prompt"   
+            class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]"   
+            placeholder="Enter negative prompt...">{{ defaults.lm_negative_prompt }}</textarea>  
+    </div>  
+    <!-- Grid Layout for Other Fields -->  
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">  
+        <!-- Column 1 -->  
+        <div class="space-y-4">  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">BPM</label>  
+                <input   
+                    type="number"   
+                    id="bpm"   
+                    name="bpm"   
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.bpm }}">  
+            </div>  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">Vocal Language</label>  
+                <input   
+                    type="text"   
+                    id="vocal_language"   
+                    name="vocal_language"   
+                    class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.vocal_language }}">  
+            </div>  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">LM CFG Scale</label>  
+                <input   
+                    type="number"   
+                    id="lm_cfg_scale"   
+                    name="lm_cfg_scale"   
+                    step="0.1"   
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.lm_cfg_scale }}">  
+            </div>  
+        </div>  
+        <!-- Column 2 -->  
+        <div class="space-y-4">  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">Keyscale</label>  
+                <input   
+                    type="text"   
+                    id="keyscale"   
+                    name="keyscale"   
+                    class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.keyscale }}">  
+            </div>  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">Seed</label>  
+                <input   
+                    type="number"   
+                    id="seed"   
+                    name="seed"   
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.seed }}">  
+            </div>  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">LM Top P</label>  
+                <input   
+                    type="number"   
+                    id="lm_top_p"   
+                    name="lm_top_p"   
+                    step="0.01"   
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.lm_top_p }}">  
+            </div>  
+        </div>  
+        <!-- Column 3 -->  
+        <div class="space-y-4">  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">Time Signature</label>  
+                <input   
+                    type="text"   
+                    id="timesignature"   
+                    name="timesignature"   
+                    class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.timesignature }}">  
+            </div>  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">LM Temperature</label>  
+                <input   
+                    type="number"   
+                    id="lm_temperature"   
+                    name="lm_temperature"   
+                    step="0.01"   
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.lm_temperature }}">  
+            </div>  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">LM Top K</label>  
+                <input   
+                    type="number"   
+                    id="lm_top_k"   
+                    name="lm_top_k"   
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.lm_top_k }}">  
+            </div>  
+        </div>  
+        <!-- Column 4 -->  
+        <div class="space-y-4">  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">Audio Codes</label>  
+                <input   
+                    type="text"   
+                    id="audio_codes"   
+                    name="audio_codes"   
+                    class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.audio_codes }}">  
+            </div>  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">Inference Steps</label>  
+                <input   
+                    type="number"   
+                    id="inference_steps"   
+                    name="inference_steps"   
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.inference_steps }}">  
+            </div>  
+            <div class="space-y-2">  
+                <label class="block text-sm font-medium text-[#f0f0f0]">Guidance Scale</label>  
+                <input   
+                    type="number"   
+                    id="guidance_scale"   
+                    name="guidance_scale"   
+                    step="0.1"   
+                    class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                    value="{{ defaults.guidance_scale }}">  
+            </div>  
+        </div>  
+    </div>  
+    <!-- Bottom Row: Shift and Audio Cover Strength -->  
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">  
+        <div class="space-y-2">  
+            <label class="block text-sm font-medium text-[#f0f0f0]">Shift</label>  
+            <input   
+                type="number"   
+                id="shift"   
+                name="shift"   
+                step="0.1"   
+                class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                value="{{ defaults.shift }}">  
+        </div>  
+        <div class="space-y-2">  
+            <label class="block text-sm font-medium text-[#f0f0f0]">Audio Cover Strength</label>  
+            <input   
+                type="number"   
+                id="audio_cover_strength"   
+                name="audio_cover_strength"   
+                step="0.01"   
+                class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]"   
+                value="{{ defaults.audio_cover_strength }}">  
+        </div>  
+    </div>  
+    <!-- Reset Buttons -->  
+    <div class="pt-4">  
+        <button type="button" id="resetToDefaultsBtn" class="btn btn-secondary w-full">Reset to Defaults</button>  
+    </div>  
+    <div class="pt-4">  
+        <button   
+            type="submit"   
+            id="generateBtn"   
+            class="btn btn-primary w-full text-white bg-[#1a73e8] hover:bg-[#1557b0]">  
+            Generate Music  
+        </button>  
+    </div>  
+</form>  
+            <!-- Results Section -->  
+            <div id="results" class="max-w-4xl mx-auto mt-8 hidden card-style rounded-lg p-4">  
+                <h2 class="text-xl font-semibold mb-4 text-white">Generated Music</h2>  
+                <div>  
+                    <div id="audioPlayer" class="mb-4"></div>  
+                    <div class="flex space-x-4">  
+                        <button id="downloadBtn" class="btn btn-success">Download All Files</button>  
+                        <button id="newGenerationBtn" class="btn btn-secondary">New Generation</button>  
+                    </div>  
+                </div>  
+            </div>  
+            <!-- Loading Indicator -->  
+            <div id="loading" class="max-w-4xl mx-auto mt-8 hidden text-center">  
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1a73e8]"></div>  
+                <p class="mt-2 text-[#f0f0f0]" id="loading-text">Processing enhancement...</p>  
+            </div>  
+            <!-- Error Message -->  
+            <div id="error" class="max-w-4xl mx-auto mt-8 p-4 bg-[#dc3545] text-white rounded-lg hidden"></div>  
+        </main>  
+        <footer class="bg-[#1e1e1e] border-t border-[#333] py-4">  
+            <div class="max-w-7xl mx-auto px-4 text-center">  
+                <p class="text-sm text-[#e0e0e0]">Copyright IDS, 2026</p>  
+            </div>  
+        </footer>  
+    </div>  
 <script>  
     $(document).ready(function() {  
         let currentBaseFilename = '';  
@@ -277,3 +684,5 @@
         }  
     });  
 </script>
+</body>  
+</html>

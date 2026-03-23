@@ -5,24 +5,49 @@ import uuid
 import datetime
 import logging
 from flask import Flask, render_template, request, jsonify, send_file, after_this_request
-import pygame
-from io import BytesIO
 import zipfile
+import pkg_resources
+import sys
 
 # Initialize Flask app
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'generated'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
+# Check for oldGPU flag from command line
+old_gpu_flag = False
+for arg in sys.argv:
+    if arg.startswith("oldGPU="):
+        old_gpu_flag = arg.split("=")[1] == "1"
+        break
+
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Initialize pygame mixer
-pygame.mixer.init()
-
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+def get_flask_version():
+    """Determine Flask version programmatically"""
+    try:
+        flask_version = pkg_resources.get_distribution("Flask").version
+        # Parse version string to tuple for comparison
+        version_tuple = tuple(map(int, flask_version.split('.')[:2]))
+        return version_tuple
+    except Exception as e:
+        logger.warning(f"Could not determine Flask version: {e}")
+        return (0, 0)  # Default to old version if detection fails
+
+# Determine Flask version and set appropriate send_file parameters
+FLASK_VERSION = get_flask_version()
+SEND_FILE_KWARGS = {
+    'as_attachment': True
+}
+if FLASK_VERSION >= (2, 0):
+    SEND_FILE_KWARGS['download_name'] = None  # Will be set dynamically
+else:
+    SEND_FILE_KWARGS['attachment_filename'] = None  # Will be set dynamically
 
 def get_default_values():
     return {
@@ -80,7 +105,6 @@ def cleanup_files(base_filename, use_llm=False, reference_audio_filename=None):
         ])
     else:
         files_to_remove.append(f"{base_filename}0.wav")
-    
     # Clean up reference audio file if provided
     if reference_audio_filename:
         ref_audio_path = os.path.join(app.config['UPLOAD_FOLDER'], reference_audio_filename)
@@ -90,7 +114,6 @@ def cleanup_files(base_filename, use_llm=False, reference_audio_filename=None):
                 logger.info(f"Removed reference audio file: {ref_audio_path}")
             except Exception as e:
                 logger.error(f"Error removing reference audio file {ref_audio_path}: {str(e)}")
-    
     # Clean up LLM generated files if they exist
     llm_json = os.path.join(app.config['UPLOAD_FOLDER'], f"{base_filename}0.json")
     if os.path.exists(llm_json):
@@ -99,7 +122,6 @@ def cleanup_files(base_filename, use_llm=False, reference_audio_filename=None):
             logger.info(f"Removed LLM JSON file: {llm_json}")
         except Exception as e:
             logger.error(f"Error removing LLM JSON file {llm_json}: {str(e)}")
-    
     for file in files_to_remove:
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file)
         try:
@@ -124,22 +146,18 @@ def generate():
         logger.debug(f"Request form data: {dict(request.form)}")
         logger.debug(f"Request files keys: {list(request.files.keys())}")
         logger.debug(f"Request content-type: {request.content_type}")
-        
         # Check if 'reference_audio' file is present in request.files
         has_file_upload = 'reference_audio' in request.files and request.files['reference_audio'].filename != ''
         logger.info(f"File upload detected: {has_file_upload}")
-        
         # Parse flags from form
         use_llm = request.form.get('use_llm', 'false').lower() == 'true'
         enhance_via_llm = request.form.get('enhance_via_llm', 'false').lower() == 'true'
         use_reference_audio = request.form.get('use_reference_audio', 'false').lower() == 'true'
         logger.info(f"Received generation request with use_llm={use_llm}, enhance_via_llm={enhance_via_llm}, use_reference_audio={use_reference_audio}")
-        
         # Generate unique filename
         base_filename = generate_filename()
         json_filename = f"{base_filename}.json"
         json_path = os.path.join(app.config['UPLOAD_FOLDER'], json_filename)
-        
         # Handle reference audio file upload
         if use_reference_audio and has_file_upload:
             ref_file = request.files['reference_audio']
@@ -149,7 +167,6 @@ def generate():
                     "status": "error",
                     "message": "No reference audio selected"
                 }), 400
-            
             # Generate unique filename for reference audio
             ext = os.path.splitext(ref_file.filename)[1] or '.wav'
             reference_audio_filename = f"{base_filename}_ref{ext}"
@@ -168,7 +185,6 @@ def generate():
                     "status": "error",
                     "message": "Failed to save reference audio file"
                 }), 500
-        
         # Prepare JSON data
         json_data = {
             "caption": request.form.get("caption", ""),
@@ -190,18 +206,17 @@ def generate():
             "shift": float(request.form.get("shift", 3.0)),
             "audio_cover_strength": float(request.form.get("audio_cover_strength", 0.5))
         }
-        
         # Save JSON file
         with open(json_path, 'w') as f:
             json.dump(json_data, f, indent=2)
             logger.info(f"Saved JSON configuration to {json_path}")
-        
         # Handle LLM enhancement (only when enhance_via_llm is true)
         if enhance_via_llm:
             logger.info("Running LLM enhancement")
             # First command: LLM generation
             cmd1 = f"./bin/ace-lm --request {json_path} --model ./models/acestep-5Hz-lm-4B-Q8_0.gguf"
-            #for older GPU if get NANs or bad results# cmd1 = f"./bin/ace-lm --request {json_path} --model ./models/acestep-5Hz-lm-4B-Q8_0.gguf --clamp-fp16"            
+            if old_gpu_flag:
+                cmd1 += " --clamp-fp16"
             success, output = run_command(cmd1)
             if not success:
                 logger.error(f"LLM enhancement failed: {output}")
@@ -211,7 +226,6 @@ def generate():
                     "message": f"LLM enhancement failed: {output}",
                     "details": "Check if the ace-lm executable and model files are in the correct location."
                 })
-            
             # Check intermediate JSON
             intermediate_json = os.path.join(app.config['UPLOAD_FOLDER'], f"{base_filename}0.json")
             if not os.path.exists(intermediate_json):
@@ -222,11 +236,9 @@ def generate():
                     "message": "LLM enhancement completed but intermediate file was not created",
                     "details": error_msg
                 })
-            
             # Read the enhanced JSON data
             with open(intermediate_json, 'r') as f:
                 enhanced_data = json.load(f)
-            
             # Return enhanced data for GUI update
             return jsonify({
                 "status": "enhanced",
@@ -235,15 +247,16 @@ def generate():
                 "use_llm": False,  # Always false for enhancement
                 "use_reference_audio": use_reference_audio
             })
-        
         # Regular generation (without LLM)
         logger.info("Running without LLM pipeline")
         cmd = f"./bin/ace-synth --request {json_path} --text-encoder ./models/Qwen3-Embedding-0.6B-Q8_0.gguf --dit ./models/acestep-v15-turbo-Q8_0.gguf --vae ./models/vae-BF16.gguf --wav"
-        #for older GPU if get NANs or bad results# cmd = f"./bin/ace-synth --request {json_path} --text-encoder ./models/Qwen3-Embedding-0.6B-Q8_0.gguf --dit ./models/acestep-v15-turbo-Q8_0.gguf --vae ./models/vae-BF16.gguf --wav --clamp-fp16"
+        if old_gpu_flag:
+            cmd += " --clamp-fp16"
         if use_reference_audio and reference_audio_filename:
             ref_audio_path = os.path.join(app.config['UPLOAD_FOLDER'], reference_audio_filename)
             cmd = f"./bin/ace-synth --src-audio {ref_audio_path} --request {json_path} --text-encoder ./models/Qwen3-Embedding-0.6B-Q8_0.gguf --dit ./models/acestep-v15-turbo-Q8_0.gguf --vae ./models/vae-BF16.gguf --wav"
-            #for older GPU if get NANs or bad results# cmd = f"./bin/ace-synth --src-audio {ref_audio_path} --request {json_path} --text-encoder ./models/Qwen3-Embedding-0.6B-Q8_0.gguf --dit ./models/acestep-v15-turbo-Q8_0.gguf --vae ./models/vae-BF16.gguf --wav --clamp-fp16"
+            if old_gpu_flag:
+                cmd += " --clamp-fp16"
         logger.info(f"Final command: {cmd}")
         success, output = run_command(cmd)
         if success:
@@ -259,7 +272,6 @@ def generate():
                     "use_llm": False,  # Always false for regular generation
                     "use_reference_audio": use_reference_audio
                 })
-        
         # If we get here, command failed
         logger.error(f"Command failed: {output}")
         return jsonify({
@@ -267,7 +279,6 @@ def generate():
             "message": "Audio generation failed",
             "details": output
         })
-    
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
         logger.exception(error_msg)
@@ -276,7 +287,6 @@ def generate():
             "message": "An unexpected error occurred",
             "details": error_msg
         }), 500
-    
     finally:
         if not success and base_filename:
             cleanup_files(base_filename, use_llm, reference_audio_filename)
@@ -295,7 +305,6 @@ def download(base_filename):
     use_reference_audio = request.args.get('use_reference_audio', 'false').lower() == 'true'
     zip_filename = f"{base_filename}.zip"
     zip_path = os.path.join(app.config['UPLOAD_FOLDER'], zip_filename)
-    
     # Define files to include based on whether LLM was used
     files_to_zip = [f"{base_filename}.json"]  # Always include the main JSON
     if use_llm:
@@ -305,7 +314,6 @@ def download(base_filename):
         ])
     else:
         files_to_zip.append(f"{base_filename}0.wav")  # Output WAV
-    
     # Check which files actually exist
     existing_files = []
     missing_files = []
@@ -315,7 +323,6 @@ def download(base_filename):
             existing_files.append(file)
         else:
             missing_files.append(file)
-    
     # If any required files are missing, return an error
     if missing_files:
         error_msg = f"Missing files: {', '.join(missing_files)}"
@@ -325,7 +332,6 @@ def download(base_filename):
             "message": "Could not create download package",
             "details": error_msg
         }), 404
-    
     # Create ZIP file
     try:
         with zipfile.ZipFile(zip_path, 'w') as zipf:
@@ -340,7 +346,6 @@ def download(base_filename):
             "message": "Could not create download package",
             "details": error_msg
         }), 500
-    
     # Fix: Always pass None for reference_audio_filename — it's not available here!
     @after_this_request
     def remove_file(response):
@@ -350,14 +355,17 @@ def download(base_filename):
                 os.remove(zip_path)
                 logger.info(f"Removed ZIP file: {zip_path}")
             # Safe cleanup: pass None instead of undefined variable
-            cleanup_files(base_filename, use_llm, None)  # 👈 No error now!
+            cleanup_files(base_filename, use_llm, None)  # 
         except Exception as e:
             logger.error(f"Error removing files: {e}")
         return response
-    
-    return send_file(zip_path, as_attachment=True, download_name=zip_filename)  #flask > 2.0   
-    #return send_file(zip_path, as_attachment=True, attachment_filename=zip_filename) #flask < 2.0
+    # Use appropriate send_file parameters based on Flask version
+    send_kwargs = SEND_FILE_KWARGS.copy()
+    if FLASK_VERSION >= (2, 0):
+        send_kwargs['download_name'] = zip_filename
+    else:
+        send_kwargs['attachment_filename'] = zip_filename
+    return send_file(zip_path, **send_kwargs)
 
 if __name__ == '__main__':
     app.run(debug=False, port=3000, host="0.0.0.0")
-

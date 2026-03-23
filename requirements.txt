@@ -1,1 +1,1 @@
-flask pygame python-dotenv
+flask python-dotenv

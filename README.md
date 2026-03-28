@@ -16,7 +16,8 @@ For those of us with older GPUs that produce silence, use the paramater oldgpu=1
 
 And once again, obligatory ( updated for current featureset ) screenshot:
 
-<img width="963" height="885" alt="image" src="https://github.com/user-attachments/assets/33d7e495-2e4c-4345-94e5-80eb81124a13" />
+<img width="789" height="772" alt="image" src="https://github.com/user-attachments/assets/06f65704-c354-43bf-9c93-0bedbd2bfa8f" />
+
 
 
 

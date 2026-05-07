@@ -1,5 +1,7 @@
 # acestep.cpp-simple-GUI
 
+** due to upstream changes where cli options were moved to json only, we are currently broken. Working on fixing this **
+
 
 Another super simple web interface for something because im too lazy to type.
 

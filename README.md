@@ -14,7 +14,7 @@ Then get the minimum required ggufs and drop them into the models folder. ( also
 
 Be sure to grab dependencies from the requirements.txt file, which is minimal as always - in this case just flask and python-dotenv
 
-For those of us with older GPUs that produce silence, use the paramater oldgpu=1 when you call the application. 
+For those of us with older GPUs that produce silence, there is now an option in the GUI for this, no need to pass a paramater now. just selct "-clamp-fp16" in the "addtional args" area before generation.
 
 And once again, obligatory ( updated for current featureset ) screenshot:
 

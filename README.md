@@ -1,6 +1,6 @@
 # acestep.cpp-simple-GUI
 
-** due to upstream changes where cli options were moved to json only, we are currently broken. Working on fixing this **
+** Updated to fix breaking changes upstream with CLI options. Should be working now **
 
 
 Another super simple web interface for something because im too lazy to type.
@@ -18,7 +18,8 @@ For those of us with older GPUs that produce silence, use the paramater oldgpu=1
 
 And once again, obligatory ( updated for current featureset ) screenshot:
 
-<img width="789" height="772" alt="image" src="https://github.com/user-attachments/assets/06f65704-c354-43bf-9c93-0bedbd2bfa8f" />
+<img width="751" height="813" alt="image" src="https://github.com/user-attachments/assets/09451eef-3b6f-4412-87b3-de2be85184e1" />
+
 
 
 

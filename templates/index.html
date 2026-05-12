@@ -120,12 +120,7 @@ max-width: 160px; /* Keep compact */
 <option value="repaint">repaint</option>        
 </select>        
 </div>        
-<!-- Shift (2 columns) -->        
-<div class="space-y-2 md:col-span-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Shift</label>        
-<input type="number" id="shift" name="shift" step="0.1" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.shift }}">        
-</div>        
-<!-- Audio Cover Strength (2 columns) -->        
+<!-- Audio Cover Strength (2 columns) - Shift moved out of here to the bottom grid -->        
 <div class="space-y-2 md:col-span-2">        
 <label class="block text-sm font-medium text-[#f0f0f0]">Audio Cover Strength</label>        
 <input type="number" id="audio_cover_strength" name="audio_cover_strength" step="0.01" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.audio_cover_strength }}">        
@@ -146,7 +141,6 @@ max-width: 160px; /* Keep compact */
           <p id="refAudioNote" class="text-xs text-gray-400 mt-1">Loading...</p>  
       </div>  
   </div>  
-
   <!-- Source Audio Section (Col 2 / Right) -->  
   <div id="srcAudioSection" class="space-y-2 transition-all duration-300 ease-in-out">  
       <div class="flex flex-col h-full">  
@@ -173,9 +167,8 @@ max-width: 160px; /* Keep compact */
             </div>  
         </div>  
     </div>  
-
 </div>  
-  
+
 <!-- Lyrics - full width (Matching Caption width) -->        
 <div class="space-y-2">        
 <label class="block text-sm font-medium text-[#f0f0f0]">Lyrics</label>        
@@ -194,13 +187,14 @@ max-width: 160px; /* Keep compact */
 <label class="block text-sm font-medium text-[#f0f0f0]">BPM</label>        
 <input type="number" id="bpm" name="bpm" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.bpm }}">        
 </div>        
+<!-- Shift Dialog - MOVED HERE (Now in Column 1, below BPM) -->
+<div class="space-y-2">        
+<label class="block text-sm font-medium text-[#f0f0f0]">Shift</label>        
+<input type="number" id="shift" name="shift" step="0.1" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.shift }}">        
+</div>        
 <div class="space-y-2">        
 <label class="block text-sm font-medium text-[#f0f0f0]">Vocal Language</label>        
 <input type="text" id="vocal_language" name="vocal_language" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.vocal_language }}">        
-</div>        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">LM CFG Scale</label>        
-<input type="number" id="lm_cfg_scale" name="lm_cfg_scale" step="0.1" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_cfg_scale }}">        
 </div>        
 </div>        
 <!-- Column 2 -->        
@@ -214,8 +208,8 @@ max-width: 160px; /* Keep compact */
 <input type="number" id="seed" name="seed" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.seed }}">        
 </div>        
 <div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">LM Top P</label>        
-<input type="number" id="lm_top_p" name="lm_top_p" step="0.01" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_top_p }}">        
+<label class="block text-sm font-medium text-[#f0f0f0]">LM CFG Scale</label>        
+<input type="number" id="lm_cfg_scale" name="lm_cfg_scale" step="0.1" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_cfg_scale }}">        
 </div>        
 </div>        
 <!-- Column 3 -->        
@@ -229,15 +223,15 @@ max-width: 160px; /* Keep compact */
 <input type="number" id="lm_temperature" name="lm_temperature" step="0.01" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_temperature }}">        
 </div>        
 <div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">LM Top K</label>        
-<input type="number" id="lm_top_k" name="lm_top_k" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_top_k }}">        
+<label class="block text-sm font-medium text-[#f0f0f0]">LM Top P</label>        
+<input type="number" id="lm_top_p" name="lm_top_p" step="0.01" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_top_p }}">        
 </div>        
 </div>        
 <!-- Column 4 -->        
 <div class="space-y-4">        
 <div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Audio Codes</label>        
-<input type="text" id="audio_codes" name="audio_codes" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.audio_codes }}">        
+<label class="block text-sm font-medium text-[#f0f0f0]">LM Top K</label>        
+<input type="number" id="lm_top_k" name="lm_top_k" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_top_k }}">        
 </div>        
 <div class="space-y-2">        
 <label class="block text-sm font-medium text-[#f0f0f0]">Inference Steps</label>        
@@ -253,6 +247,10 @@ max-width: 160px; /* Keep compact */
 <option value="./models/acestep-v15-xl-sft-Q8_0.gguf" data-inference-steps="30">acestep-v15-xl-sft-Q8_0.gguf (30 steps)</option>        
 <option value="./models/acestep-v15-base-Q8_0.gguf" data-inference-steps="50">acestep-v15-base-Q8_0.gguf (50 steps)</option>        
 </select>        
+</div>        
+<div class="space-y-2">        
+<label class="block text-sm font-medium text-[#f0f0f0]">Audio Codes</label>        
+<input type="text" id="audio_codes" name="audio_codes" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.audio_codes }}">        
 </div>        
 <div class="space-y-2">        
 <label class="block text-sm font-medium text-[#f0f0f0]">Additional Args</label>        
@@ -331,7 +329,7 @@ updateAudioVisibility(taskType);
 });        
 // Initialize on load  
 updateAudioVisibility($('#task_type').val());  
-  
+
 function updateAudioVisibility(taskType) {  
     // Hide all sections initially  
     $('#refAudioSection').addClass('hidden');  
@@ -341,7 +339,7 @@ function updateAudioVisibility(taskType) {
     // Reset badges  
     $('#refAudioRequiredBadge, #refAudioOptionalBadge, #srcAudioRequiredBadge, #srcAudioOptionalBadge').addClass('hidden');  
     $('#refAudioNote, #srcAudioNote').text('Loading...');  
-  
+
     if (taskType === 'text2music') {  
         // Display reference only with being optional ( and add note that its optional )  
         $('#refAudioSection').removeClass('hidden');  
@@ -379,7 +377,7 @@ function updateAudioVisibility(taskType) {
         $('#srcAudioNote').text("Required: Used for repaint generation.");  
     }  
 }  
-  
+
 // Reset to Defaults        
 $('#resetToDefaultsBtn').on('click', function() {        
 const defaults = {{ defaults|tojson }};        
@@ -420,6 +418,7 @@ $('#caption').val(response.enhanced_data.caption || '');
 $('#lyrics').val(response.enhanced_data.lyrics || '[instrumental]');        
 $('#duration').val(response.enhanced_data.duration || 0);        
 $('#bpm').val(response.enhanced_data.bpm || 0);        
+$('#shift').val(response.enhanced_data.shift || 0); // Added Shift to enhancement logic
 $('#keyscale').val(response.enhanced_data.keyscale || '');        
 $('#seed').val(response.enhanced_data.seed || -1);        
 $('#lm_temperature').val(response.enhanced_data.lm_temperature || 0.85);        
@@ -443,19 +442,17 @@ complete: function() { $('#enhanceBtn').prop('disabled', false); setLoading(null
 // LLM Analyze Logic
 $('#analyzeBtn').on('click', function(e) {
     e.preventDefault();
-    
+
     // Check if reference audio is provided
     const refFile = $('#ref_audio')[0].files.length;
     if (refFile === 0) {
         showError("Reference Audio is required for LLM Analyze.");
         return;
     }
-
     const formData = new FormData($('#musicForm')[0]);
-    
+
     setLoading('Analyzing audio with LLM...');
     $(this).prop('disabled', true);
-
     $.ajax({
         url: '/analyze_llm',
         type: 'POST',
@@ -465,16 +462,17 @@ $('#analyzeBtn').on('click', function(e) {
         success: function(response) {
             if (response.status === 'success') {
                 const data = response.analysis_data;
-                
+
                 // Map analysis data to form fields (adjust keys if the JSON structure differs)
                 if (data.caption) $('#caption').val(data.caption);
                 if (data.lyrics) $('#lyrics').val(data.lyrics);
                 if (data.bpm) $('#bpm').val(data.bpm);
+                if (data.shift) $('#shift').val(data.shift); // Added Shift to analyze logic
                 if (data.duration) $('#duration').val(data.duration);
                 if (data.keyscale) $('#keyscale').val(data.keyscale);
                 if (data.timesignature) $('#timesignature').val(data.timesignature);
                 if (data.vocal_language) $('#vocal_language').val(data.vocal_language);
-                
+
                 // Optional: Map inference parameters if provided by the model
                 if (data.seed && data.seed !== -1) $('#seed').val(data.seed);
                 if (data.lm_temperature) $('#lm_temperature').val(data.lm_temperature);
@@ -483,7 +481,7 @@ $('#analyzeBtn').on('click', function(e) {
                 if (data.lm_top_k) $('#lm_top_k').val(data.lm_top_k);
                 if (data.audio_codes) $('#audio_codes').val(data.audio_codes);
                 if (data.inference_steps) $('#inference_steps').val(data.inference_steps);
-                
+
                 showSuccess("LLM Analyze Complete! Fields updated.");
             } else {
                 showError(response.message || "Analysis failed.");
@@ -546,11 +544,11 @@ const fileInput = document.createElement('input');
 fileInput.type = 'file';        
 fileInput.accept = '.json';        
 fileInput.style.display = 'none';    
-  
+
 fileInput.onchange = function(e) {        
 const file = e.target.files[0];        
 if (!file) return;    
-  
+
 const reader = new FileReader();        
 reader.onload = function(event) {        
 try {        
@@ -567,12 +565,12 @@ showError("Invalid JSON file: " + error.message);
 };        
 reader.readAsText(file);        
 };    
-  
+
 document.body.appendChild(fileInput);        
 fileInput.click();        
 fileInput.remove(); // Clean up after selection        
 });    
-  
+
 // Main Generation (Updated to check Caption Required Field)        
 $('#musicForm').on('submit', function(e) {        
 e.preventDefault();        
@@ -585,19 +583,19 @@ return;
 // Check for required audio files based on task type  
 const taskType = $('#task_type').val();  
 let audioError = "";  
-  
+
 if (taskType === 'cover' || taskType === 'cover-nofsq' || taskType === 'repaint') {  
     const srcFile = $('#src_audio')[0].files.length;  
     if (srcFile === 0) {  
         audioError = "Source Audio (src_audio) is required for " + taskType + ".";  
     }  
 }  
-  
+
 if (audioError !== "") {  
     showError(audioError);  
     return;  
 }  
-  
+
 if (currentBaseFilename) {        
 $.post('/cleanup', JSON.stringify({base_filename: currentBaseFilename}));        
 }        
@@ -637,7 +635,7 @@ showError(msg);
 complete: function() { setLoading(null); $('#generateBtn').prop('disabled', false); }        
 });        
 });    
-  
+
 // New Generation        
 $('#newGenerationBtn').on('click', function() {        
 if (currentBaseFilename) {        
@@ -649,20 +647,20 @@ $('#task_type').val('text2music').trigger('change');
 $('#synth_model').trigger('change');        
 currentBaseFilename = '';        
 });    
-  
+
 // Clear Audio Files        
 $('#clearRefBtn').on('click', function() {        
 $('#ref_audio').val('');        
 $('#ref_audio')[0].files = new DataTransfer().files;        
 showSuccess("Reference audio cleared");        
 });    
-  
+
 $('#clearSrcBtn').on('click', function() {        
 $('#src_audio').val('');        
 $('#src_audio')[0].files = new DataTransfer().files;        
 showSuccess("Source audio cleared");        
 });    
-  
+
 // Helper Functions        
 function setLoading(text) {        
 const $loading = $('#loading');        
@@ -685,4 +683,4 @@ setTimeout(() => { $error.addClass('hidden'); }, 3000);
 }        
 });        
 </script></body>        
-</html>
+</html>        

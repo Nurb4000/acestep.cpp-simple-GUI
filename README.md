@@ -28,7 +28,8 @@ Be sure to grab python dependencies from the requirements.txt file, which is min
 
 And once again, obligatory ( updated for current featureset ) screenshot:
 
-<img width="756" height="751" alt="image" src="https://github.com/user-attachments/assets/0345534e-4f36-43b9-a77e-46623dda4c49" />
+<img width="729" height="851" alt="image" src="https://github.com/user-attachments/assets/91c70212-5690-4ae7-ae4f-f8537638a5d1" />
+
 
 
 

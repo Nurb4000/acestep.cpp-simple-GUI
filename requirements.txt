@@ -1,1 +1,1 @@
-flask python-dotenv
+flask dotenv

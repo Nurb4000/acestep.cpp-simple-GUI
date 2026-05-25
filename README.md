@@ -16,6 +16,7 @@ Current features:
 - Exporting results to zip now includes any cover files used.
 - Auto cleanup is gone so you don't lose something by accdient, but there is now a manual cleanup button.
 - For those of us with older GPUs that produce silence, there is now an option in the GUI for this, no need to pass a paramater now. just selct "-clamp-fp16" in the "addtional args" area before generation.
+- Allows creating the random seed from the UI, not relying on the generatoin LLM, but you can still pass -1 if you like for the LLM to do it for you. But it wont be stored in the json.
 
 And, tho im not real fond of its accuracy on actual lyrics, we just added an "llm-Analyze" option, to feed the reference audio into the OEM llm ( using the cli defaults ). It will feed the results of its analysis back into the GUI for review/edit/removal/redo, much like LLM-Enhance does, only this time its just listening to the audio track, and not the text you have entered. It does an ok job on structure, so figured it might be of use to have it.
 

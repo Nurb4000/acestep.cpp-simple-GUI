@@ -1,443 +1,456 @@
-<!DOCTYPE html>        
-<html lang="en" class="h-full bg-[#121212]">        
-<head>        
-<meta charset="UTF-8">        
-<meta name="viewport" content="width=device-width, initial-scale=1.0">        
-<title>Music Gen</title>        
-<script src="https://cdn.tailwindcss.com"></script>        
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>        
-<style>        
-/* Base styles - matching master.html color scheme */        
-:root {        
---text-primary: #ffffff;        
---text-secondary: #f0f0f0;        
---bg-primary: #121212;        
---bg-secondary: #1e1e1e;        
---bg-input: #2d2d2d;        
---border-color: #444;        
---focus-ring: rgba(130, 130, 130, 0.25);        
---placeholder-color: #a0aec0;        
---btn-primary: #1a73e8;        
---btn-primary-hover: #1557b0;        
---btn-secondary: #5f6368;        
---btn-success: #28a745;        
---btn-success-hover: #218838;        
---alert-danger: #dc3545;        
-}        
-body { background-color: var(--bg-primary); color: var(--text-primary); }        
-input, textarea, select { color: var(--text-primary) !important; }        
-.text-input, .number-input, .textarea {        
-@apply w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2;        
-background-color: var(--bg-input);        
-border-color: var(--border-color);        
-color: var(--text-primary) !important;        
-box-shadow: 0 0 0 0.25rem var(--focus-ring);        
-}        
-/* Fixed: Setting minimum height for caption, lyrics, and negative prompt to approx 5 lines */        
-#caption.textarea, #lyrics.textarea, #lm_negative_prompt.textarea {        
-min-height: 10rem;        
-height: auto;        
-}        
-::placeholder { color: var(--placeholder-color) !important; opacity: 1; }        
-.btn { @apply px-4 py-2 rounded-md font-medium transition-colors duration-200; }        
-.btn-primary { background-color: var(--btn-primary); color: white; }        
-.btn-primary:hover { background-color: var(--btn-primary-hover); }        
-.btn-secondary { background-color: var(--btn-secondary); color: white; }        
-.btn-success { background-color: var(--btn-success); color: white; }        
-.btn-success:hover { background-color: var(--btn-success-hover); }        
-.error-message { @apply text-red-400 text-sm mt-1; }        
-/* Custom scrollbar */        
-::-webkit-scrollbar { width: 8px; height: 8px; }        
-::-webkit-scrollbar-track { background-color: var(--bg-input); }        
-::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 4px; }        
-::-webkit-scrollbar-thumb:hover { background-color: #555; }        
-/* Force text color in all inputs */        
-input[type="text"], input[type="number"], input[type="email"], input[type="password"],        
-input[type="search"], input[type="tel"], input[type="url"], textarea, select {        
-color: var(--text-primary) !important;        
-}        
-/* Override any browser-specific styles */        
-input:-webkit-autofill {        
--webkit-text-fill-color: var(--text-primary) !important;        
--webkit-box-shadow: 0 0 0 30px var(--bg-input) inset !important;        
-}        
-.card-style { background-color: var(--bg-secondary); border: 1px solid #333; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }        
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#121212]">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Gen</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<style>
+/* Base styles - matching master.html color scheme */
+:root {
+--text-primary: #ffffff;
+--text-secondary: #f0f0f0;
+--bg-primary: #121212;
+--bg-secondary: #1e1e1e;
+--bg-input: #2d2d2d;
+--border-color: #444;
+--focus-ring: rgba(130, 130, 130, 0.25);
+--placeholder-color: #a0aec0;
+--btn-primary: #1a73e8;
+--btn-primary-hover: #1557b0;
+--btn-secondary: #5f6368;
+--btn-success: #28a745;
+--btn-success-hover: #218838;
+--alert-danger: #dc3545;
+}
+body { background-color: var(--bg-primary); color: var(--text-primary); }
+input, textarea, select { color: var(--text-primary) !important; }
+.text-input, .number-input, .textarea {
+@apply w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2;
+background-color: var(--bg-input);
+border-color: var(--border-color);
+color: var(--text-primary) !important;
+box-shadow: 0 0 0 0.25rem var(--focus-ring);
+}
+/* Fixed: Setting minimum height for caption, lyrics, and negative prompt to approx 5 lines */
+#caption.textarea, #lyrics.textarea, #lm_negative_prompt.textarea {
+min-height: 10rem;
+height: auto;
+}
+::placeholder { color: var(--placeholder-color) !important; opacity: 1; }
+.btn { @apply px-4 py-2 rounded-md font-medium transition-colors duration-200; }
+.btn-primary { background-color: var(--btn-primary); color: white; }
+.btn-primary:hover { background-color: var(--btn-primary-hover); }
+.btn-secondary { background-color: var(--btn-secondary); color: white; }
+.btn-success { background-color: var(--btn-success); color: white; }
+.btn-success:hover { background-color: var(--btn-success-hover); }
+.error-message { @apply text-red-400 text-sm mt-1; }
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background-color: var(--bg-input); }
+::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background-color: #555; }
+/* Force text color in all inputs */
+input[type="text"], input[type="number"], input[type="email"], input[type="password"],
+input[type="search"], input[type="tel"], input[type="url"], textarea, select {
+color: var(--text-primary) !important;
+}
+/* Override any browser-specific styles */
+input:-webkit-autofill {
+-webkit-text-fill-color: var(--text-primary) !important;
+-webkit-box-shadow: 0 0 0 30px var(--bg-input) inset !important;
+}
+.card-style { background-color: var(--bg-secondary); border: 1px solid #333; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
 /* Clear button styling - FIXED to match original look */
-.clear-btn {        
+.clear-btn {
 @apply px-2 py-1 rounded-md text-xs font-medium transition-colors duration-200;
-background-color: #5f6368;        
-color: white;        
-}        
-.clear-btn:hover {        
-background-color: #4a4d50;        
-cursor: pointer;        
-}        
-/* NEW STYLES: Repainting fields specific adjustments */        
-.repainting-input {        
-@apply w-full px-2 py-1 rounded-md border focus:outline-none focus:ring-2 text-sm;        
-background-color: var(--bg-input);        
-border-color: var(--border-color);        
-color: var(--text-primary) !important;        
-box-shadow: 0 0 0 0.25rem var(--focus-ring);        
-width: 100%;        
-max-width: 160px; /* Keep compact */  
-}        
-/* Compact File Input Styles */  
-.compact-file-input {  
-    @apply w-full py-1 text-sm; /* Reduced padding */  
-}  
-</style>        
-</head>        
-<body class="h-full text-white">        
-<div class="min-h-full flex flex-col">        
-<header class="bg-[#1e1e1e] border-b border-[#333] shadow">        
-<div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">        
-<h1 class="text-3xl font-bold text-white">Music Gen</h1>        
-</div>        
-</header>        
-<main class="flex-1 overflow-y-auto p-6">        
-<form id="musicForm" class="max-w-7xl mx-auto space-y-6">        
-<!-- Row 1: Caption (Most Critical - Top) -->        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Caption <span class="text-red-500 text-xs">*</span></label>        
-<textarea id="caption" name="caption" class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]" rows="5" placeholder="Enter caption..." required></textarea>        
-<p class="text-xs text-gray-400 mt-1">This field is required.</p>        
-</div>        
-<!-- Row 2: Compact Controls (Duration, Task Type, Shift, Strength) -->        
-<div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">        
-<!-- Duration (2 columns) -->        
-<div class="space-y-2 md:col-span-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Duration</label>        
-<input type="number" id="duration" name="duration" step="0.1" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.duration }}">        
-</div>        
-<!-- Task Type (3 columns) -->        
-<div class="space-y-2 md:col-span-3">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Task Type</label>        
-<select id="task_type" name="task_type" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]">        
-<option value="text2music" selected>text2music (Default)</option>        
-<option value="cover">cover</option>        
-<option value="cover-nofsq">cover-nofsq</option>        
-<option value="repaint">repaint</option>        
-</select>        
-</div>        
-<!-- Audio Cover Strength (2 columns) - Shift moved out of here to the bottom grid -->        
-<div class="space-y-2 md:col-span-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Audio Cover Strength</label>        
-<input type="number" id="audio_cover_strength" name="audio_cover_strength" step="0.01" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.audio_cover_strength }}">        
-</div>        
-</div>        
-<!-- Audio Uploads Container - Grid Layout for Side-by-Side -->  
-<div id="audioUploadsContainer" class="grid grid-cols-1 lg:grid-cols-2 gap-6">  
-  <!-- Reference Audio Section (Col 1 / Left) -->  
-  <div id="refAudioSection" class="space-y-2 transition-all duration-300 ease-in-out">  
-      <div class="flex items-center gap-2">  
-          <label class="block text-sm font-medium text-[#f0f0f0]">Reference Audio (ref_audio)</label>  
-          <span id="refAudioRequiredBadge" class="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300 hidden">Required</span>  
-          <span id="refAudioOptionalBadge" class="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300 hidden">Optional</span>  
-      </div>  
-      <input type="file" id="ref_audio" name="ref_audio" accept="audio/*" class="compact-file-input w-full px-3 py-1 rounded-md border bg-[#2d2d2d] text-white border-[#444]">  
-      <div class="flex items-center gap-2 mt-1">  
-          <button type="button" id="clearRefBtn" class="clear-btn">Clear</button>  
-          <p id="refAudioNote" class="text-xs text-gray-400 mt-1">Loading...</p>  
-      </div>  
-  </div>  
-  <!-- Source Audio Section (Col 2 / Right) -->  
-  <div id="srcAudioSection" class="space-y-2 transition-all duration-300 ease-in-out">  
-      <div class="flex flex-col h-full">  
-          <div class="flex items-center gap-2 mb-1">  
-              <label class="block text-sm font-medium text-[#f0f0f0]">Source Audio (src_audio)</label>  
-              <span id="srcAudioRequiredBadge" class="text-xs px-2 py-0.5 rounded bg-red-900 text-red-300 hidden">Required</span>  
-              <span id="srcAudioOptionalBadge" class="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300 hidden">Optional</span>  
-          </div>  
-          <input type="file" id="src_audio" name="src_audio" accept="audio/*" class="compact-file-input w-full px-3 py-1 rounded-md border bg-[#2d2d2d] text-white border-[#444]">  
-          <div class="flex items-center gap-2 mt-1 mb-3">  
-              <button type="button" id="clearSrcBtn" class="clear-btn">Clear</button>  
-              <p id="srcAudioNote" class="text-xs text-gray-400 mt-1">Loading...</p>  
-          </div>  
-            <!-- Repainting Start/End Fields (Inside Source Column, Bottom Right) -->  
-            <div id="repaintingFields" class="grid grid-cols-2 gap-4 hidden mt-auto pt-4 border-t border-[#444]">  
-                <div class="space-y-2">  
-                    <label class="block text-xs font-medium text-[#f0f0f0]">Repainting Start</label>  
-                    <input type="number" id="repainting_start" name="repainting_start" class="repainting-input bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.repainting_start }}">  
-                </div>  
-                <div class="space-y-2">  
-                    <label class="block text-xs font-medium text-[#f0f0f0]">Repainting End</label>  
-                    <input type="number" id="repainting_end" name="repainting_end" class="repainting-input bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.repainting_end }}">  
-                </div>  
-            </div>  
-        </div>  
-    </div>  
-</div>  
-<!-- Lyrics - full width (Matching Caption width) -->        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Lyrics</label>        
-<textarea id="lyrics" name="lyrics" class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]" rows="5" placeholder="Enter lyrics...">{{ defaults.lyrics }}</textarea>        
-</div>        
-<!-- Negative Prompt - full width -->        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Negative Prompt</label>        
-<textarea id="lm_negative_prompt" name="lm_negative_prompt" class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]" rows="5" placeholder="Enter negative prompt...">{{ defaults.lm_negative_prompt }}</textarea>        
-</div>        
-<!-- Grid Layout for Other Fields -->        
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4">        
-<!-- Column 1 -->        
-<div class="space-y-4">        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">BPM</label>        
-<input type="number" id="bpm" name="bpm" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.bpm }}">        
-</div>        
+background-color: #5f6368;
+color: white;
+}
+.clear-btn:hover {
+background-color: #4a4d50;
+cursor: pointer;
+}
+/* NEW STYLES: Repainting fields specific adjustments */
+.repainting-input {
+@apply w-full px-2 py-1 rounded-md border focus:outline-none focus:ring-2 text-sm;
+background-color: var(--bg-input);
+border-color: var(--border-color);
+color: var(--text-primary) !important;
+box-shadow: 0 0 0 0.25rem var(--focus-ring);
+width: 100%;
+max-width: 160px; /* Keep compact */
+}
+/* Compact File Input Styles */
+.compact-file-input {
+    @apply w-full py-1 text-sm; /* Reduced padding */
+}
+/* Random Seed Button */
+.seed-gen-btn {
+    @apply px-2 py-1 text-sm rounded-md font-medium transition-colors duration-200;
+    background-color: #5f6368;
+    color: white;
+}
+.seed-gen-btn:hover {
+    background-color: #4a4d50;
+    cursor: pointer;
+}
+</style>
+</head>
+<body class="h-full text-white">
+<div class="min-h-full flex flex-col">
+<header class="bg-[#1e1e1e] border-b border-[#333] shadow">
+<div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+<h1 class="text-3xl font-bold text-white">Music Gen</h1>
+</div>
+</header>
+<main class="flex-1 overflow-y-auto p-6">
+<form id="musicForm" class="max-w-7xl mx-auto space-y-6">
+<!-- Row 1: Caption (Most Critical - Top) -->
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Caption <span class="text-red-500 text-xs">*</span></label>
+<textarea id="caption" name="caption" class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]" rows="5" placeholder="Enter caption..." required></textarea>
+<p class="text-xs text-gray-400 mt-1">This field is required.</p>
+</div>
+<!-- Row 2: Compact Controls (Duration, Task Type, Shift, Strength) -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+<!-- Duration (2 columns) -->
+<div class="space-y-2 md:col-span-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Duration</label>
+<input type="number" id="duration" name="duration" step="0.1" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.duration }}">
+</div>
+<!-- Task Type (3 columns) -->
+<div class="space-y-2 md:col-span-3">
+<label class="block text-sm font-medium text-[#f0f0f0]">Task Type</label>
+<select id="task_type" name="task_type" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]">
+<option value="text2music" selected>text2music (Default)</option>
+<option value="cover">cover</option>
+<option value="cover-nofsq">cover-nofsq</option>
+<option value="repaint">repaint</option>
+</select>
+</div>
+<!-- Audio Cover Strength (2 columns) - Shift moved out of here to the bottom grid -->
+<div class="space-y-2 md:col-span-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Audio Cover Strength</label>
+<input type="number" id="audio_cover_strength" name="audio_cover_strength" step="0.01" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.audio_cover_strength }}">
+</div>
+</div>
+<!-- Audio Uploads Container - Grid Layout for Side-by-Side -->
+<div id="audioUploadsContainer" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- Reference Audio Section (Col 1 / Left) -->
+  <div id="refAudioSection" class="space-y-2 transition-all duration-300 ease-in-out">
+      <div class="flex items-center gap-2">
+          <label class="block text-sm font-medium text-[#f0f0f0]">Reference Audio (ref_audio)</label>
+          <span id="refAudioRequiredBadge" class="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300 hidden">Required</span>
+          <span id="refAudioOptionalBadge" class="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300 hidden">Optional</span>
+      </div>
+      <input type="file" id="ref_audio" name="ref_audio" accept="audio/*" class="compact-file-input w-full px-3 py-1 rounded-md border bg-[#2d2d2d] text-white border-[#444]">
+      <div class="flex items-center gap-2 mt-1">
+          <button type="button" id="clearRefBtn" class="clear-btn">Clear</button>
+          <p id="refAudioNote" class="text-xs text-gray-400 mt-1">Loading...</p>
+      </div>
+  </div>
+  <!-- Source Audio Section (Col 2 / Right) -->
+  <div id="srcAudioSection" class="space-y-2 transition-all duration-300 ease-in-out">
+      <div class="flex flex-col h-full">
+          <div class="flex items-center gap-2 mb-1">
+              <label class="block text-sm font-medium text-[#f0f0f0]">Source Audio (src_audio)</label>
+              <span id="srcAudioRequiredBadge" class="text-xs px-2 py-0.5 rounded bg-red-900 text-red-300 hidden">Required</span>
+              <span id="srcAudioOptionalBadge" class="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300 hidden">Optional</span>
+          </div>
+          <input type="file" id="src_audio" name="src_audio" accept="audio/*" class="compact-file-input w-full px-3 py-1 rounded-md border bg-[#2d2d2d] text-white border-[#444]">
+          <div class="flex items-center gap-2 mt-1 mb-3">
+              <button type="button" id="clearSrcBtn" class="clear-btn">Clear</button>
+              <p id="srcAudioNote" class="text-xs text-gray-400 mt-1">Loading...</p>
+          </div>
+            <!-- Repainting Start/End Fields (Inside Source Column, Bottom Right) -->
+            <div id="repaintingFields" class="grid grid-cols-2 gap-4 hidden mt-auto pt-4 border-t border-[#444]">
+                <div class="space-y-2">
+                    <label class="block text-xs font-medium text-[#f0f0f0]">Repainting Start</label>
+                    <input type="number" id="repainting_start" name="repainting_start" class="repainting-input bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.repainting_start }}">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-xs font-medium text-[#f0f0f0]">Repainting End</label>
+                    <input type="number" id="repainting_end" name="repainting_end" class="repainting-input bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.repainting_end }}">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Lyrics - full width (Matching Caption width) -->
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Lyrics</label>
+<textarea id="lyrics" name="lyrics" class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]" rows="5" placeholder="Enter lyrics...">{{ defaults.lyrics }}</textarea>
+</div>
+<!-- Negative Prompt - full width -->
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Negative Prompt</label>
+<textarea id="lm_negative_prompt" name="lm_negative_prompt" class="textarea w-full bg-[#2d2d2d] text-white border border-[#444]" rows="5" placeholder="Enter negative prompt...">{{ defaults.lm_negative_prompt }}</textarea>
+</div>
+<!-- Grid Layout for Other Fields -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+<!-- Column 1 -->
+<div class="space-y-4">
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">BPM</label>
+<input type="number" id="bpm" name="bpm" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.bpm }}">
+</div>
 <!-- Shift Dialog - MOVED HERE (Now in Column 1, below BPM) -->
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Shift</label>        
-<input type="number" id="shift" name="shift" step="0.1" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.shift }}">        
-</div>        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Vocal Language</label>        
-<input type="text" id="vocal_language" name="vocal_language" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.vocal_language }}">        
-</div>        
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Shift</label>
+<input type="number" id="shift" name="shift" step="0.1" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.shift }}">
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Vocal Language</label>
+<input type="text" id="vocal_language" name="vocal_language" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.vocal_language }}">
+</div>
 <!-- Audio Codes - MOVED HERE (Now in Column 1, directly under Vocal Language) -->
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Audio Codes</label>        
-<input type="text" id="audio_codes" name="audio_codes" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.audio_codes }}">        
-</div>        
-</div>        
-<!-- Column 2 -->        
-<div class="space-y-4">        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Keyscale</label>        
-<input type="text" id="keyscale" name="keyscale" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.keyscale }}">        
-</div>        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Seed</label>        
-<input type="number" id="seed" name="seed" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.seed }}">        
-</div>        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">LM CFG Scale</label>        
-<input type="number" id="lm_cfg_scale" name="lm_cfg_scale" step="0.1" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_cfg_scale }}">        
-</div>        
-</div>        
-<!-- Column 3 -->        
-<div class="space-y-4">        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Time Signature</label>        
-<input type="text" id="timesignature" name="timesignature" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.timesignature }}">        
-</div>        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">LM Temperature</label>        
-<input type="number" id="lm_temperature" name="lm_temperature" step="0.01" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_temperature }}">        
-</div>        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">LM Top P</label>        
-<input type="number" id="lm_top_p" name="lm_top_p" step="0.01" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_top_p }}">        
-</div>        
-</div>        
-<!-- Column 4 -->        
-<div class="space-y-4">        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">LM Top K</label>        
-<input type="number" id="lm_top_k" name="lm_top_k" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_top_k }}">        
-</div>        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Inference Steps</label>        
-<input type="number" id="inference_steps" name="inference_steps" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.inference_steps }}">        
-</div>        
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Synth Model</label>        
-<select id="synth_model" name="synth_model" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]">        
-<option value="./models/acestep-v15-xl-turbo-Q8_0.gguf" data-inference-steps="20" selected>acestep-v15-xl-turbo-Q8_0.gguf (20 steps)</option>        
-<option value="./models/acestep-v15-xl-base-Q8_0.gguf" data-inference-steps="50">acestep-v15-xl-base-Q8_0.gguf (50 steps)</option>        
-<option value="./models/acestep-v15-turbo-Q8_0.gguf" data-inference-steps="10">acestep-v15-turbo-Q8_0.gguf (10 steps)</option>        
-<option value="./models/acestep-v15-sft-Q8_0.gguf" data-inference-steps="30">acestep-v15-sft-Q8_0.gguf (30 steps)</option>        
-<option value="./models/acestep-v15-xl-sft-Q8_0.gguf" data-inference-steps="30">acestep-v15-xl-sft-Q8_0.gguf (30 steps)</option>        
-<option value="./models/acestep-v15-base-Q8_0.gguf" data-inference-steps="50">acestep-v15-base-Q8_0.gguf (50 steps)</option>        
-</select>        
-</div>        
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Audio Codes</label>
+<input type="text" id="audio_codes" name="audio_codes" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.audio_codes }}">
+</div>
+</div>
+<!-- Column 2 -->
+<div class="space-y-4">
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Keyscale</label>
+<input type="text" id="keyscale" name="keyscale" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.keyscale }}">
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Seed</label>
+<div class="flex items-center gap-2">
+<input type="number" id="seed" name="seed" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.seed }}">
+<button type="button" id="randomSeedBtn" class="seed-gen-btn" title="Generate Random Seed">🎲</button>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">LM CFG Scale</label>
+<input type="number" id="lm_cfg_scale" name="lm_cfg_scale" step="0.1" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_cfg_scale }}">
+</div>
+</div>
+<!-- Column 3 -->
+<div class="space-y-4">
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Time Signature</label>
+<input type="text" id="timesignature" name="timesignature" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.timesignature }}">
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">LM Temperature</label>
+<input type="number" id="lm_temperature" name="lm_temperature" step="0.01" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_temperature }}">
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">LM Top P</label>
+<input type="number" id="lm_top_p" name="lm_top_p" step="0.01" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_top_p }}">
+</div>
+</div>
+<!-- Column 4 -->
+<div class="space-y-4">
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">LM Top K</label>
+<input type="number" id="lm_top_k" name="lm_top_k" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_top_k }}">
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Inference Steps</label>
+<input type="number" id="inference_steps" name="inference_steps" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.inference_steps }}">
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Synth Model</label>
+<select id="synth_model" name="synth_model" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]">
+<option value="./models/acestep-v15-xl-turbo-Q8_0.gguf" data-inference-steps="20" selected>acestep-v15-xl-turbo-Q8_0.gguf (20 steps)</option>
+<option value="./models/acestep-v15-xl-base-Q8_0.gguf" data-inference-steps="50">acestep-v15-xl-base-Q8_0.gguf (50 steps)</option>
+<option value="./models/acestep-v15-turbo-Q8_0.gguf" data-inference-steps="10">acestep-v15-turbo-Q8_0.gguf (10 steps)</option>
+<option value="./models/acestep-v15-sft-Q8_0.gguf" data-inference-steps="30">acestep-v15-sft-Q8_0.gguf (30 steps)</option>
+<option value="./models/acestep-v15-xl-sft-Q8_0.gguf" data-inference-steps="30">acestep-v15-xl-sft-Q8_0.gguf (30 steps)</option>
+<option value="./models/acestep-v15-base-Q8_0.gguf" data-inference-steps="50">acestep-v15-base-Q8_0.gguf (50 steps)</option>
+</select>
+</div>
 <!-- Removed Audio Codes from here (now in Column 1) -->
-<div class="space-y-2">        
-<label class="block text-sm font-medium text-[#f0f0f0]">Additional Args</label>        
-<div class="flex items-center mt-2">        
-<input type="checkbox" id="clamp_fp16" name="clamp_fp16" class="rounded text-[#1a73e8] mr-2">        
-<span class="text-sm text-[#f0f0f0]">--clamp-fp16</span>        
-</div>        
-</div>        
-</div>        
-</div>        
-<!-- Action Buttons Container -->        
-<div class="pt-4 space-y-6">        
-<!-- Primary Actions (Side-by-Side) -->        
-<div class="flex flex-wrap justify-center gap-4">        
-<button type="button" id="generateJsonBtn" class="btn btn-primary w-1/3 bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold">        
-Generate JSON file        
-</button>        
-<button type="button" id="loadJsonBtn" class="btn btn-primary w-1/3 bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold">        
-Load JSON File        
-</button>        
+<div class="space-y-2">
+<label class="block text-sm font-medium text-[#f0f0f0]">Additional Args</label>
+<div class="flex items-center mt-2">
+<input type="checkbox" id="clamp_fp16" name="clamp_fp16" class="rounded text-[#1a73e8] mr-2">
+<span class="text-sm text-[#f0f0f0]">--clamp-fp16</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Buttons Container -->
+<div class="pt-4 space-y-6">
+<!-- Primary Actions (Side-by-Side) -->
+<div class="flex flex-wrap justify-center gap-4">
+<button type="button" id="generateJsonBtn" class="btn btn-primary w-1/3 bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold">
+Generate JSON file
+</button>
+<button type="button" id="loadJsonBtn" class="btn btn-primary w-1/3 bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold">
+Load JSON File
+</button>
 <!-- LLM Analyze Button -->
-<button type="button" id="analyzeBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">        
-LLM Analyze        
-</button>        
+<button type="button" id="analyzeBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">
+LLM Analyze
+</button>
 <!-- Enhance via LLM Button (Moved here) -->
-<button type="button" id="enhanceBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">Enhance via LLM</button>        
+<button type="button" id="enhanceBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">Enhance via LLM</button>
 <!-- Generate Music Button (Moved here) -->
-<button type="submit" id="generateBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">        
-Generate Music        
-</button>        
-</div>        
-<!-- Secondary/Utility Actions (Centered, Smaller) -->        
-<div class="flex flex-wrap justify-center gap-4 border-t border-[#333] pt-4 mt-4">        
-<button type="button" id="resetToDefaultsBtn" class="btn btn-secondary px-6">Reset to Defaults</button>        
-<button type="button" id="cleanupAllBtn" class="btn btn-secondary px-6 bg-red-700 hover:bg-red-600">Cleanup All Files</button>        
-</div>        
-</div>        
-</form>        
-<!-- Results Section -->        
-<div id="results" class="max-w-4xl mx-auto mt-8 hidden card-style rounded-lg p-4">        
-<h2 class="text-xl font-semibold mb-4 text-white">Generated Music</h2>        
-<div>        
-<div id="audioPlayer" class="mb-4"></div>        
-<div class="flex space-x-4">        
-<button id="downloadBtn" class="btn btn-success">Download All Files (ZIP)</button>        
-<button id="newGenerationBtn" class="btn btn-secondary">New Generation</button>        
-</div>        
-</div>        
-</div>        
-<!-- Loading Indicator -->        
-<div id="loading" class="max-w-4xl mx-auto mt-8 hidden text-center">        
-<div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1a73e8]"></div>        
-<p class="mt-2 text-[#f0f0f0]" id="loading-text">Processing...</p>        
-</div>        
-<!-- Error Message -->        
-<div id="error" class="max-w-4xl mx-auto mt-8 p-4 bg-[#dc3545] text-white rounded-lg hidden"></div>        
-</main>        
-<footer class="bg-[#1e1e1e] border-t border-[#333] py-4">        
-<div class="max-w-7xl mx-auto px-4 text-center">        
-<p class="text-sm text-[#e0e0e0]">Courtesy IDS, 2026</p>        
-</div>        
-</footer>        
-</div>        
-<script>        
-$(document).ready(function() {        
-let currentBaseFilename = '';        
-// Model Change Listener        
-$('#synth_model').on('change', function() {        
-const steps = $(this).find('option:selected').data('inference-steps');        
-$('#inference_steps').val(steps);        
-});        
-$('#synth_model').trigger('change'); // Initialize        
-// Task Type Listener        
-$('#task_type').on('change', function() {        
-const taskType = $(this).val();        
-updateAudioVisibility(taskType);        
-});        
-// Initialize on load  
-updateAudioVisibility($('#task_type').val());  
-function updateAudioVisibility(taskType) {  
-    // Hide all sections initially  
-    $('#refAudioSection').addClass('hidden');  
-    $('#srcAudioSection').addClass('hidden');  
-    $('#repaintingFields').addClass('hidden');  
+<button type="submit" id="generateBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">
+Generate Music
+</button>
+</div>
+<!-- Secondary/Utility Actions (Centered, Smaller) -->
+<div class="flex flex-wrap justify-center gap-4 border-t border-[#333] pt-4 mt-4">
+<button type="button" id="resetToDefaultsBtn" class="btn btn-secondary px-6">Reset to Defaults</button>
+<button type="button" id="cleanupAllBtn" class="btn btn-secondary px-6 bg-red-700 hover:bg-red-600">Cleanup All Files</button>
+</div>
+</div>
+</form>
+<!-- Results Section -->
+<div id="results" class="max-w-4xl mx-auto mt-8 hidden card-style rounded-lg p-4">
+<h2 class="text-xl font-semibold mb-4 text-white">Generated Music</h2>
+<div>
+<div id="audioPlayer" class="mb-4"></div>
+<div class="flex space-x-4">
+<button id="downloadBtn" class="btn btn-success">Download All Files (ZIP)</button>
+<button id="newGenerationBtn" class="btn btn-secondary">New Generation</button>
+</div>
+</div>
+</div>
+<!-- Loading Indicator -->
+<div id="loading" class="max-w-4xl mx-auto mt-8 hidden text-center">
+<div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1a73e8]"></div>
+<p class="mt-2 text-[#f0f0f0]" id="loading-text">Processing...</p>
+</div>
+<!-- Error Message -->
+<div id="error" class="max-w-4xl mx-auto mt-8 p-4 bg-[#dc3545] text-white rounded-lg hidden"></div>
+</main>
+<footer class="bg-[#1e1e1e] border-t border-[#333] py-4">
+<div class="max-w-7xl mx-auto px-4 text-center">
+<p class="text-sm text-[#e0e0e0]">Courtesy IDS, 2026</p>
+</div>
+</footer>
+</div>
+<script>
+$(document).ready(function() {
+let currentBaseFilename = '';
+// Model Change Listener
+$('#synth_model').on('change', function() {
+const steps = $(this).find('option:selected').data('inference-steps');
+$('#inference_steps').val(steps);
+});
+$('#synth_model').trigger('change'); // Initialize
+// Task Type Listener
+$('#task_type').on('change', function() {
+const taskType = $(this).val();
+updateAudioVisibility(taskType);
+});
+// Initialize on load
+updateAudioVisibility($('#task_type').val());
+function updateAudioVisibility(taskType) {
+    // Hide all sections initially
+    $('#refAudioSection').addClass('hidden');
+    $('#srcAudioSection').addClass('hidden');
+    $('#repaintingFields').addClass('hidden');
   //  
-    // Reset badges  
-    $('#refAudioRequiredBadge, #refAudioOptionalBadge, #srcAudioRequiredBadge, #srcAudioOptionalBadge').addClass('hidden');  
-    $('#refAudioNote, #srcAudioNote').text('Loading...');  
-    if (taskType === 'text2music') {  
-        // Display reference only with being optional ( and add note that its optional )  
-        $('#refAudioSection').removeClass('hidden');  
-        $('#refAudioOptionalBadge').removeClass('hidden');  
-        $('#refAudioNote').text("Optional: Used for text2music style reference.");  
+    // Reset badges
+    $('#refAudioRequiredBadge, #refAudioOptionalBadge, #srcAudioRequiredBadge, #srcAudioOptionalBadge').addClass('hidden');
+    $('#refAudioNote, #srcAudioNote').text('Loading...');
+    if (taskType === 'text2music') {
+        // Display reference only with being optional ( and add note that its optional )
+        $('#refAudioSection').removeClass('hidden');
+        $('#refAudioOptionalBadge').removeClass('hidden');
+        $('#refAudioNote').text("Optional: Used for text2music style reference.");
     }   
-    else if (taskType === 'cover') {  
-        // Display both, with reference being optional ( and add note that source is required and reference is optional )  
-        $('#refAudioSection').removeClass('hidden');  
-        $('#srcAudioSection').removeClass('hidden');  
+    else if (taskType === 'cover') {
+        // Display both, with reference being optional ( and add note that source is required and reference is optional )
+        $('#refAudioSection').removeClass('hidden');
+        $('#srcAudioSection').removeClass('hidden');
   //      
-        $('#srcAudioRequiredBadge').removeClass('hidden');  
-        $('#srcAudioNote').text("Required: Used for cover generation.");  
+        $('#srcAudioRequiredBadge').removeClass('hidden');
+        $('#srcAudioNote').text("Required: Used for cover generation.");
   //      
-        $('#refAudioOptionalBadge').removeClass('hidden');  
-        $('#refAudioNote').text("Optional: Used for style reference.");  
+        $('#refAudioOptionalBadge').removeClass('hidden');
+        $('#refAudioNote').text("Optional: Used for style reference.");
     }   
-    else if (taskType === 'cover-nofsq') {  
-        // Display both, with reference being optional ( and add note that source is required and reference is optional )  
-        $('#refAudioSection').removeClass('hidden');  
-        $('#srcAudioSection').removeClass('hidden');  
+    else if (taskType === 'cover-nofsq') {
+        // Display both, with reference being optional ( and add note that source is required and reference is optional )
+        $('#refAudioSection').removeClass('hidden');
+        $('#srcAudioSection').removeClass('hidden');
   //      
-        $('#srcAudioRequiredBadge').removeClass('hidden');  
-        $('#srcAudioNote').text("Required: Used for cover generation.");  
+        $('#srcAudioRequiredBadge').removeClass('hidden');
+        $('#srcAudioNote').text("Required: Used for cover generation.");
   //      
-        $('#refAudioOptionalBadge').removeClass('hidden');  
-        $('#refAudioNote').text("Optional: Used for style reference.");  
+        $('#refAudioOptionalBadge').removeClass('hidden');
+        $('#refAudioNote').text("Optional: Used for style reference.");
     }   
-    else if (taskType === 'repaint') {  
-        // Display source audio ( and repainting_start and repainting_end ) with it being required. ( and add note that source is required )  
-        $('#srcAudioSection').removeClass('hidden');  
-        $('#repaintingFields').removeClass('hidden');  
+    else if (taskType === 'repaint') {
+        // Display source audio ( and repainting_start and repainting_end ) with it being required. ( and add note that source is required )
+        $('#srcAudioSection').removeClass('hidden');
+        $('#repaintingFields').removeClass('hidden');
   //      
-        $('#srcAudioRequiredBadge').removeClass('hidden');  
-        $('#srcAudioNote').text("Required: Used for repaint generation.");  
-    }  
-}  
-// Reset to Defaults        
-$('#resetToDefaultsBtn').on('click', function() {        
-const defaults = {{ defaults|tojson }};        
-for (const [key, value] of Object.entries(defaults)) {        
-if (['caption', 'lyrics', 'lm_negative_prompt'].includes(key)) {        
-$('#' + key).val(value);        
-} else {        
-$('#' + key).val(value);        
-}        
-}        
-$('#task_type').val('text2music').trigger('change');        
-$('#synth_model').trigger('change');        
-showSuccess("Form reset to defaults");        
-});        
-// Cleanup All        
-$('#cleanupAllBtn').on('click', function() {        
-if(confirm("Delete ALL generated files?")) {        
-$.post('/cleanup_all', function(res) { showSuccess("Cleanup completed."); });        
-}        
-});        
-// LLM Enhancement        
-$('#enhanceBtn').on('click', function(e) {        
-e.preventDefault();        
-const formData = new FormData($('#musicForm')[0]);        
-formData.set('enhance_via_llm', 'true');        
-setLoading('Processing enhancement...');        
-$(this).prop('disabled', true);        
-$.ajax({        
-url: '/generate',        
-type: 'POST',        
-data: formData,        
-processData: false, contentType: false,        
-success: function(response) {        
-if (response.status === 'enhanced') {        
-currentBaseFilename = response.base_filename;        
-// Update form fields with enhanced data        
-$('#caption').val(response.enhanced_data.caption || '');        
-$('#lyrics').val(response.enhanced_data.lyrics || '[instrumental]');        
-$('#duration').val(response.enhanced_data.duration || 0);        
-$('#bpm').val(response.enhanced_data.bpm || 0);        
+        $('#srcAudioRequiredBadge').removeClass('hidden');
+        $('#srcAudioNote').text("Required: Used for repaint generation.");
+    }
+}
+// Reset to Defaults
+$('#resetToDefaultsBtn').on('click', function() {
+const defaults = {{ defaults|tojson }};
+for (const [key, value] of Object.entries(defaults)) {
+if (['caption', 'lyrics', 'lm_negative_prompt'].includes(key)) {
+$('#' + key).val(value);
+} else {
+$('#' + key).val(value);
+}
+}
+$('#task_type').val('text2music').trigger('change');
+$('#synth_model').trigger('change');
+showSuccess("Form reset to defaults");
+});
+// Cleanup All
+$('#cleanupAllBtn').on('click', function() {
+if(confirm("Delete ALL generated files?")) {
+$.post('/cleanup_all', function(res) { showSuccess("Cleanup completed."); });
+}
+});
+// LLM Enhancement
+$('#enhanceBtn').on('click', function(e) {
+e.preventDefault();
+const formData = new FormData($('#musicForm')[0]);
+formData.set('enhance_via_llm', 'true');
+setLoading('Processing enhancement...');
+$(this).prop('disabled', true);
+$.ajax({
+url: '/generate',
+type: 'POST',
+data: formData,
+processData: false, contentType: false,
+success: function(response) {
+if (response.status === 'enhanced') {
+currentBaseFilename = response.base_filename;
+// Update form fields with enhanced data
+$('#caption').val(response.enhanced_data.caption || '');
+$('#lyrics').val(response.enhanced_data.lyrics || '[instrumental]');
+$('#duration').val(response.enhanced_data.duration || 0);
+$('#bpm').val(response.enhanced_data.bpm || 0);
 $('#shift').val(response.enhanced_data.shift || 0); // Added Shift to enhancement logic
-$('#keyscale').val(response.enhanced_data.keyscale || '');        
-$('#seed').val(response.enhanced_data.seed || -1);        
-$('#lm_temperature').val(response.enhanced_data.lm_temperature || 0.85);        
-$('#lm_cfg_scale').val(response.enhanced_data.lm_cfg_scale || 2.0);        
-$('#lm_top_p').val(response.enhanced_data.lm_top_p || 0.9);        
-$('#lm_top_k').val(response.enhanced_data.lm_top_k || 0);        
-// ADDED MISSING FIELDS FOR TIME SIGNATURE AND AUDIO CODES        
-$('#timesignature').val(response.enhanced_data.timesignature || '');        
-$('#audio_codes').val(response.enhanced_data.audio_codes || '');        
-showSuccess("LLM Enhancement Complete!");        
-} else {        
-showError(response.message || "Enhancement failed.");        
-}        
-},        
-error: function(xhr) {        
-showError("LLM Error: " + (xhr.responseJSON?.message || "Unknown error"));        
-},        
-complete: function() { $('#enhanceBtn').prop('disabled', false); setLoading(null); }        
-});        
-});        
+$('#keyscale').val(response.enhanced_data.keyscale || '');
+$('#seed').val(response.enhanced_data.seed || -1);
+$('#lm_temperature').val(response.enhanced_data.lm_temperature || 0.85);
+$('#lm_cfg_scale').val(response.enhanced_data.lm_cfg_scale || 2.0);
+$('#lm_top_p').val(response.enhanced_data.lm_top_p || 0.9);
+$('#lm_top_k').val(response.enhanced_data.lm_top_k || 0);
+// ADDED MISSING FIELDS FOR TIME SIGNATURE AND AUDIO CODES
+$('#timesignature').val(response.enhanced_data.timesignature || '');
+$('#audio_codes').val(response.enhanced_data.audio_codes || '');
+showSuccess("LLM Enhancement Complete!");
+} else {
+showError(response.message || "Enhancement failed.");
+}
+},
+error: function(xhr) {
+showError("LLM Error: " + (xhr.responseJSON?.message || "Unknown error"));
+},
+complete: function() { $('#enhanceBtn').prop('disabled', false); setLoading(null); }
+});
+});
 // LLM Analyze Logic
 $('#analyzeBtn').on('click', function(e) {
     e.preventDefault();
@@ -497,173 +510,181 @@ $('#analyzeBtn').on('click', function(e) {
         }
     });
 });
-// GENERATE BASE JSON (CRITICAL FEATURE FIX)        
-$('#generateJsonBtn').on('click', function(e) {        
-e.preventDefault();        
-const formData = new FormData($('#musicForm')[0]);        
-setLoading('Generating JSON file...');        
-$.ajax({        
-url: '/generate_json',        
-type: 'POST',        
-data: formData,        
-processData: false, contentType: false,        
-success: function(response) {        
-if (response.status === 'success') {        
-// Trigger download using the JSON content from the response        
-const jsonContent = response.json_content;        
-const filename = response.json_filename;        
-const blob = new Blob([jsonContent], { type: 'application/json' });        
-const url = window.URL.createObjectURL(blob);        
-const a = document.createElement('a');        
-a.href = url;        
-a.download = filename;        
-document.body.appendChild(a);        
-a.click();        
-document.body.removeChild(a);        
-window.URL.revokeObjectURL(url);        
-showSuccess("JSON file downloaded: " + filename);        
-} else {        
-showError(response.message || "JSON Generation failed.");        
-}        
-},        
-error: function(xhr) {        
-showError("JSON Error: " + (xhr.responseJSON?.message || "Unknown error"));        
-},        
-complete: function() { setLoading(null); }        
-});        
-});        
-// NEW FEATURE: LOAD JSON FILE        
-$('#loadJsonBtn').on('click', function() {        
-const fileInput = document.createElement('input');        
-fileInput.type = 'file';        
-fileInput.accept = '.json';        
-fileInput.style.display = 'none';    
-fileInput.onchange = function(e) {        
-const file = e.target.files[0];        
-if (!file) return;    
-const reader = new FileReader();        
-reader.onload = function(event) {        
-try {        
-const jsonData = JSON.parse(event.target.result);        
-for (const [key, value] of Object.entries(jsonData)) {        
-if ($('#' + key).length) {        
-$('#' + key).val(value);        
-}        
-}        
-showSuccess("JSON loaded successfully.");        
-} catch (error) {        
-showError("Invalid JSON file: " + error.message);        
-}        
-};        
-reader.readAsText(file);        
-};    
-document.body.appendChild(fileInput);        
-fileInput.click();        
-fileInput.remove(); // Clean up after selection        
-});    
-// Main Generation (Updated to check Caption Required Field)        
-$('#musicForm').on('submit', function(e) {        
-e.preventDefault();        
-// Check if Caption is empty        
-if ($('#caption').val().trim() === '') {        
-showError("Caption is a required field and cannot be empty.");        
-$('#caption').focus();        
-return;        
-}        
-// Check for required audio files based on task type  
-const taskType = $('#task_type').val();  
-let audioError = "";  
-if (taskType === 'cover' || taskType === 'cover-nofsq' || taskType === 'repaint') {  
-    const srcFile = $('#src_audio')[0].files.length;  
-    if (srcFile === 0) {  
-        audioError = "Source Audio (src_audio) is required for " + taskType + ".";  
-    }  
-}  
-if (audioError !== "") {  
-    showError(audioError);  
-    return;  
-}  
-if (currentBaseFilename) {        
-$.post('/cleanup', JSON.stringify({base_filename: currentBaseFilename}));        
-}        
-const formData = new FormData(this);        
-formData.set('enhance_via_llm', 'false');        
-setLoading('Generating music...');        
-$('#generateBtn').prop('disabled', true);        
-$('#results').addClass('hidden');        
-$.ajax({        
-url: '/generate',        
-type: 'POST',        
-data: formData,        
-processData: false, contentType: false,        
-success: function(response) {        
-if (response.status === 'success') {        
-currentBaseFilename = response.base_filename;        
-const audioPlayer = '<audio controls class="w-full rounded-lg shadow-lg"><source src="' + response.wav_url + '" type="audio/wav">Your browser does not support the audio element.</audio>';        
-$('#audioPlayer').html(audioPlayer);        
-$('#downloadBtn').off('click').on('click', function() {        
-window.location.href = response.download_url;        
-});        
-$('#results').removeClass('hidden');        
-} else {        
-showError(response.message || 'Generation failed.');        
-}        
-},        
-error: function(xhr) {        
-let msg = 'Server Error.';        
-if (xhr.responseJSON && xhr.responseJSON.message) {        
-msg = xhr.responseJSON.message;        
-if (xhr.responseJSON.details) {        
-msg += '<br><small>' + xhr.responseJSON.details + '</small>';        
-}        
-}        
-showError(msg);        
-},        
-complete: function() { setLoading(null); $('#generateBtn').prop('disabled', false); }        
-});        
-});    
-// New Generation        
-$('#newGenerationBtn').on('click', function() {        
-if (currentBaseFilename) {        
-$.post('/cleanup', JSON.stringify({base_filename: currentBaseFilename}));        
-}        
-$('#results').addClass('hidden');        
-$('#musicForm')[0].reset();        
-$('#task_type').val('text2music').trigger('change');        
-$('#synth_model').trigger('change');        
-currentBaseFilename = '';        
-});    
-// Clear Audio Files        
-$('#clearRefBtn').on('click', function() {        
-$('#ref_audio').val('');        
-$('#ref_audio')[0].files = new DataTransfer().files;        
-showSuccess("Reference audio cleared");        
-});    
-$('#clearSrcBtn').on('click', function() {        
-$('#src_audio').val('');        
-$('#src_audio')[0].files = new DataTransfer().files;        
-showSuccess("Source audio cleared");        
-});    
-// Helper Functions        
-function setLoading(text) {        
-const $loading = $('#loading');        
-if (text) {        
-$('#loading-text').text(text);        
-$loading.removeClass('hidden');        
-} else {        
-$loading.addClass('hidden');        
-}        
-}        
-function showError(message) {        
-const $error = $('#error');        
-$error.html(message).removeClass('hidden bg-green-600').addClass('bg-red-600');        
-$('html, body').animate({ scrollTop: $error.offset().top - 100 }, 500);        
-}        
-function showSuccess(message) {        
-const $error = $('#error');        
-$error.html(message).removeClass('hidden bg-red-600').addClass('bg-green-600');        
-setTimeout(() => { $error.addClass('hidden'); }, 3000);        
-}        
-});        
-</script></body>        
+// GENERATE BASE JSON (CRITICAL FEATURE FIX)
+$('#generateJsonBtn').on('click', function(e) {
+e.preventDefault();
+const formData = new FormData($('#musicForm')[0]);
+setLoading('Generating JSON file...');
+$.ajax({
+url: '/generate_json',
+type: 'POST',
+data: formData,
+processData: false, contentType: false,
+success: function(response) {
+if (response.status === 'success') {
+// Trigger download using the JSON content from the response
+const jsonContent = response.json_content;
+const filename = response.json_filename;
+const blob = new Blob([jsonContent], { type: 'application/json' });
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = filename;
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+window.URL.revokeObjectURL(url);
+showSuccess("JSON file downloaded: " + filename);
+} else {
+showError(response.message || "JSON Generation failed.");
+}
+},
+error: function(xhr) {
+showError("JSON Error: " + (xhr.responseJSON?.message || "Unknown error"));
+},
+complete: function() { setLoading(null); }
+});
+});
+// NEW FEATURE: LOAD JSON FILE
+$('#loadJsonBtn').on('click', function() {
+const fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = '.json';
+fileInput.style.display = 'none';
+fileInput.onchange = function(e) {
+const file = e.target.files[0];
+if (!file) return;
+const reader = new FileReader();
+reader.onload = function(event) {
+try {
+const jsonData = JSON.parse(event.target.result);
+for (const [key, value] of Object.entries(jsonData)) {
+if ($('#' + key).length) {
+$('#' + key).val(value);
+}
+}
+showSuccess("JSON loaded successfully.");
+} catch (error) {
+showError("Invalid JSON file: " + error.message);
+}
+};
+reader.readAsText(file);
+};
+document.body.appendChild(fileInput);
+fileInput.click();
+fileInput.remove(); // Clean up after selection
+});
+// Main Generation (Updated to check Caption Required Field)
+$('#musicForm').on('submit', function(e) {
+e.preventDefault();
+// Check if Caption is empty
+if ($('#caption').val().trim() === '') {
+showError("Caption is a required field and cannot be empty.");
+$('#caption').focus();
+return;
+}
+// Check for required audio files based on task type
+const taskType = $('#task_type').val();
+let audioError = "";
+if (taskType === 'cover' || taskType === 'cover-nofsq' || taskType === 'repaint') {
+    const srcFile = $('#src_audio')[0].files.length;
+    if (srcFile === 0) {
+        audioError = "Source Audio (src_audio) is required for " + taskType + ".";
+    }
+}
+if (audioError !== "") {
+    showError(audioError);
+    return;
+}
+if (currentBaseFilename) {
+$.post('/cleanup', JSON.stringify({base_filename: currentBaseFilename}));
+}
+const formData = new FormData(this);
+formData.set('enhance_via_llm', 'false');
+setLoading('Generating music...');
+$('#generateBtn').prop('disabled', true);
+$('#results').addClass('hidden');
+$.ajax({
+url: '/generate',
+type: 'POST',
+data: formData,
+processData: false, contentType: false,
+success: function(response) {
+if (response.status === 'success') {
+currentBaseFilename = response.base_filename;
+const audioPlayer = '<audio controls class="w-full rounded-lg shadow-lg"><source src="' + response.wav_url + '" type="audio/wav">Your browser does not support the audio element.</audio>';
+$('#audioPlayer').html(audioPlayer);
+$('#downloadBtn').off('click').on('click', function() {
+window.location.href = response.download_url;
+});
+$('#results').removeClass('hidden');
+} else {
+showError(response.message || 'Generation failed.');
+}
+},
+error: function(xhr) {
+let msg = 'Server Error.';
+if (xhr.responseJSON && xhr.responseJSON.message) {
+msg = xhr.responseJSON.message;
+if (xhr.responseJSON.details) {
+msg += '<br><small>' + xhr.responseJSON.details + '</small>';
+}
+}
+showError(msg);
+},
+complete: function() { setLoading(null); $('#generateBtn').prop('disabled', false); }
+});
+});
+// New Generation
+$('#newGenerationBtn').on('click', function() {
+if (currentBaseFilename) {
+$.post('/cleanup', JSON.stringify({base_filename: currentBaseFilename}));
+}
+$('#results').addClass('hidden');
+$('#musicForm')[0].reset();
+$('#task_type').val('text2music').trigger('change');
+$('#synth_model').trigger('change');
+currentBaseFilename = '';
+});
+// Clear Audio Files
+$('#clearRefBtn').on('click', function() {
+$('#ref_audio').val('');
+$('#ref_audio')[0].files = new DataTransfer().files;
+showSuccess("Reference audio cleared");
+});
+$('#clearSrcBtn').on('click', function() {
+$('#src_audio').val('');
+$('#src_audio')[0].files = new DataTransfer().files;
+showSuccess("Source audio cleared");
+});
+// Random Seed Generator Logic
+$('#randomSeedBtn').on('click', function() {
+    // Generate a random integer between 1 and 4294967295
+    const min = 1;
+    const max = 4294967295;
+    const randomSeed = Math.floor(Math.random() * (max - min + 1)) + min;
+    $('#seed').val(randomSeed);
+});
+// Helper Functions
+function setLoading(text) {
+const $loading = $('#loading');
+if (text) {
+$('#loading-text').text(text);
+$loading.removeClass('hidden');
+} else {
+$loading.addClass('hidden');
+}
+}
+function showError(message) {
+const $error = $('#error');
+$error.html(message).removeClass('hidden bg-green-600').addClass('bg-red-600');
+$('html, body').animate({ scrollTop: $error.offset().top - 100 }, 500);
+}
+function showSuccess(message) {
+const $error = $('#error');
+$error.html(message).removeClass('hidden bg-red-600').addClass('bg-green-600');
+setTimeout(() => { $error.addClass('hidden'); }, 3000);
+}
+});
+</script></body>
 </html>

@@ -9,14 +9,14 @@ from pathlib import Path
 import zipfile            
 import logging            
 from io import BytesIO    
-         
+
 # --- Configuration & Constants ---            
 BASE_DIR = Path(__file__).resolve().parent            
 BIN_DIR = BASE_DIR / "bin"            
 MODELS_DIR = BASE_DIR / "models"            
 GENERATION_DIR = BASE_DIR / "generation"            
 GENERATION_DIR.mkdir(exist_ok=True)    
-         
+
 # --- Logging Setup ---            
 logging.basicConfig(            
     level=logging.INFO,            
@@ -24,11 +24,11 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]            
 )            
 logger = logging.getLogger(__name__)    
-         
+
 # Default Configuration — numeric defaults are actual numbers (not strings)            
 DEFAULTS = {            
     "caption": "", "lyrics": "", "bpm": 0, "duration": 0, "keyscale": "",            
-    "timesignature": "", "vocal_language": "en", "seed": -1, "lm_batch_size": 1,            
+    "timesignature": "", "vocal_language": "en", "seed": 0, "lm_batch_size": 1,            
     "synth_batch_size": 1, "lm_temperature": 0.85, "lm_cfg_scale": 2.0,            
     "lm_top_p": 0.9, "lm_top_k": 0, "lm_negative_prompt": "", "use_cot_caption": True,            
     "audio_codes": "", "inference_steps": 20, "guidance_scale": 0.0, "shift": 0.0,            
@@ -41,7 +41,7 @@ DEFAULTS = {
     "lm_model": "./models/acestep-5Hz-lm-4B-Q8_0.gguf",            
     "adapter": "", "adapter_scale": 1.0            
 }    
-         
+
 MODEL_STEPS = {            
     "./models/acestep-v15-xl-turbo-Q8_0.gguf": 20,            
     "./models/acestep-v15-xl-base-Q8_0.gguf": 50,            
@@ -50,7 +50,7 @@ MODEL_STEPS = {
     "./models/acestep-v15-xl-sft-Q8_0.gguf": 30,            
     "./models/acestep-v15-base-Q8_0.gguf": 50            
 }    
-         
+
 # Field type categories            
 INT_FIELDS = {            
     "bpm", "duration", "seed", "lm_batch_size", "synth_batch_size",            
@@ -63,31 +63,31 @@ FLOAT_FIELDS = {
     "audio_cover_strength", "cover_noise_strength", "latent_shift",            
     "latent_rescale", "adapter_scale"            
 }    
-         
+
 def safe_int(val, default=0):            
     try:            
         return int(float(val))            
     except (ValueError, TypeError):            
         return default    
-         
+
 def safe_float(val, default=0.0):            
     try:            
         return float(val)            
     except (ValueError, TypeError):            
         return default    
-         
+
 class MusicGenApp:            
     def __init__(self):            
         self.app = Flask(__name__, template_folder='templates')            
         self.app.config['SECRET_KEY'] = 'musicgen_secret_key_12345'            
         self.app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024            
         self._setup_routes()    
-         
+
     def _setup_routes(self):            
         @self.app.route('/')            
         def index():            
             return render_template('index.html', defaults=DEFAULTS)    
-         
+
         @self.app.route('/generate_json', methods=['POST'])            
         def generate_json_only():            
             form_data = request.form.to_dict()            
@@ -135,12 +135,12 @@ class MusicGenApp:
                 "json_filename": f"{base_filename}.json",            
                 "json_content": json_str  # Pass content for frontend to download            
             })    
-         
+
         @self.app.route('/analyze_llm', methods=['POST'])
         def analyze_llm():
             form_data = request.form.to_dict()
             ref_audio_path = None
-            
+
             # 1. Locate or Save Reference Audio
             if 'ref_audio' in request.files and request.files['ref_audio'].filename:
                 file = request.files['ref_audio']
@@ -154,54 +154,47 @@ class MusicGenApp:
                     "status": "error",
                     "message": "No reference audio provided."
                 }), 400
-
             # 2. Construct Command
             analysis_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             analysis_base = f"analysis_{analysis_timestamp}"
             output_json_path = GENERATION_DIR / f"{analysis_base}.json"
-
             cmd = [
                 str(BIN_DIR / "ace-understand"),
                 "--src-audio", str(ref_audio_path),
                 "--models", str(MODELS_DIR),
                 "-o", str(output_json_path)
             ]
-
             try:
                 logger.info(f"Running LLM Analyze: {' '.join(cmd)}")
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                
+
                 if not output_json_path.exists():
                     return jsonify({
                         "status": "error",
                         "message": "Analysis output file was not created.",
                         "details": result.stdout + "\n" + result.stderr
                     })
-
                 # 3. Read the JSON
                 with open(output_json_path, 'r') as f:
                     analysis_data = json.load(f)
-
                 # 4. Cleanup (Delete the temporary analysis file)
                 try:
                     output_json_path.unlink()
                     logger.info(f"Deleted temporary analysis file: {output_json_path.name}")
                 except Exception as e:
                     logger.warning(f"Could not delete temp file {output_json_path}: {e}")
-
                 # 5. Return data to frontend
                 return jsonify({
                     "status": "success",
                     "analysis_data": analysis_data
                 })
-
             except subprocess.CalledProcessError as e:
                 return jsonify({
                     "status": "error",
                     "message": "LLM Analyze Failed",
                     "details": f"Exit code: {e.returncode}\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}"
                 }), 500
-         
+
         @self.app.route('/generate', methods=['POST'])            
         def generate():            
             form_data = request.form.to_dict()            
@@ -306,7 +299,7 @@ class MusicGenApp:
                     "message": "Synthesis Failed",            
                     "details": f"Exit code: {e.returncode}\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}"            
                 })    
-         
+
         @self.app.route('/download/all')            
         def download_all():            
             base_name = request.args.get('base')            
@@ -324,7 +317,7 @@ class MusicGenApp:
                 for f in GENERATION_DIR.glob(f"ref_{base_name}_*"):            
                     zf.write(f, f.name)            
             return send_file(zip_path, as_attachment=True)    
-         
+
         @self.app.route('/download/file')            
         def download_file():            
             path_arg = request.args.get('path')            
@@ -332,7 +325,7 @@ class MusicGenApp:
             if file_path.exists():            
                 return send_file(file_path, as_attachment=True)            
             return jsonify({"error": "File not found"}), 404    
-         
+
         @self.app.route('/cleanup', methods=['POST'])            
         def cleanup():            
             data = request.json or {}            
@@ -345,7 +338,7 @@ class MusicGenApp:
                     except Exception as e:            
                         logger.warning(f"Failed to delete {f}: {e}")            
             return jsonify({"status": "cleaned"})    
-         
+
         @self.app.route('/cleanup_all', methods=['POST'])            
         def cleanup_all():            
             try:            
@@ -359,13 +352,13 @@ class MusicGenApp:
             except Exception as e:            
                 logger.error(f"Cleanup all failed: {e}")            
                 return jsonify({"status": "error", "message": str(e)}), 500    
-         
+
     def run(self, host='0.0.0.0', port=3000, debug=False):            
         self.app.run(host=host, port=port, debug=debug)    
-         
+
 if __name__ == '__main__':            
     app_instance = MusicGenApp()            
     print("Starting Music Gen Server...")            
     print(f"Generation Directory: {GENERATION_DIR.resolve()}")            
-             
+
     app_instance.run(debug=True)

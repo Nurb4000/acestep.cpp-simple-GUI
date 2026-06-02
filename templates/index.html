@@ -96,6 +96,21 @@ max-width: 160px; /* Keep compact */
     background-color: #4a4d50;
     cursor: pointer;
 }
+/* Batch Controls */
+.batch-controls {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-4 items-center mt-4;
+}
+.batch-size-input {
+    @apply w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 text-sm;
+    background-color: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-primary) !important;
+    box-shadow: 0 0 0 0.25rem var(--focus-ring);
+    max-width: 120px;
+}
+.batch-status {
+    @apply text-sm mt-2 text-[#f0f0f0];
+}
 </style>
 </head>
 <body class="h-full text-white">
@@ -228,6 +243,11 @@ max-width: 160px; /* Keep compact */
 <label class="block text-sm font-medium text-[#f0f0f0]">LM CFG Scale</label>
 <input type="number" id="lm_cfg_scale" name="lm_cfg_scale" step="0.1" class="number-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="{{ defaults.lm_cfg_scale }}">
 </div>
+<!-- MOVED BATCH SIZE HERE (Now in Column 2) -->
+<div class="space-y-2">
+    <label class="block text-sm font-medium text-[#f0f0f0]">Batch Size</label>
+    <input type="number" id="batch_size" name="batch_size" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]" value="1" min="1">
+</div>
 </div>
 <!-- Column 3 -->
 <div class="space-y-4">
@@ -275,6 +295,9 @@ max-width: 160px; /* Keep compact */
 </div>
 </div>
 </div>
+
+<!-- Batch Controls (Legacy layout removed, functionality merged into main actions) -->
+
 <!-- Action Buttons Container -->
 <div class="pt-4 space-y-6">
 <!-- Primary Actions (Side-by-Side) -->
@@ -295,11 +318,15 @@ LLM Analyze
 <button type="submit" id="generateBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">
 Generate Music
 </button>
+<!-- Generate Batch Button (Moved here, side-by-side, fixed size/color) -->
+<button type="button" id="generateBatchBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">
+Generate Batch
+</button>
 </div>
 <!-- Secondary/Utility Actions (Centered, Smaller) -->
 <div class="flex flex-wrap justify-center gap-4 border-t border-[#333] pt-4 mt-4">
 <button type="button" id="resetToDefaultsBtn" class="btn btn-secondary px-6">Reset to Defaults</button>
-<button type="button" id="cleanupAllBtn" class="btn btn-secondary px-6 bg-red-700 hover:bg-red-600">Cleanup All Files</button>
+<!-- Removed Cleanup All button since it's no longer needed -->
 </div>
 </div>
 </form>
@@ -331,12 +358,15 @@ Generate Music
 <script>
 $(document).ready(function() {
 let currentBaseFilename = '';
+let batchActive = false;
+
 // Model Change Listener
 $('#synth_model').on('change', function() {
 const steps = $(this).find('option:selected').data('inference-steps');
 $('#inference_steps').val(steps);
 });
 $('#synth_model').trigger('change'); // Initialize
+
 // Task Type Listener
 $('#task_type').on('change', function() {
 const taskType = $(this).val();
@@ -344,12 +374,13 @@ updateAudioVisibility(taskType);
 });
 // Initialize on load
 updateAudioVisibility($('#task_type').val());
+
 function updateAudioVisibility(taskType) {
     // Hide all sections initially
     $('#refAudioSection').addClass('hidden');
     $('#srcAudioSection').addClass('hidden');
     $('#repaintingFields').addClass('hidden');
-  //  
+    
     // Reset badges
     $('#refAudioRequiredBadge, #refAudioOptionalBadge, #srcAudioRequiredBadge, #srcAudioOptionalBadge').addClass('hidden');
     $('#refAudioNote, #srcAudioNote').text('Loading...');
@@ -363,10 +394,10 @@ function updateAudioVisibility(taskType) {
         // Display both, with reference being optional ( and add note that source is required and reference is optional )
         $('#refAudioSection').removeClass('hidden');
         $('#srcAudioSection').removeClass('hidden');
-  //      
+        
         $('#srcAudioRequiredBadge').removeClass('hidden');
         $('#srcAudioNote').text("Required: Used for cover generation.");
-  //      
+        
         $('#refAudioOptionalBadge').removeClass('hidden');
         $('#refAudioNote').text("Optional: Used for style reference.");
     }   
@@ -374,10 +405,10 @@ function updateAudioVisibility(taskType) {
         // Display both, with reference being optional ( and add note that source is required and reference is optional )
         $('#refAudioSection').removeClass('hidden');
         $('#srcAudioSection').removeClass('hidden');
-  //      
+        
         $('#srcAudioRequiredBadge').removeClass('hidden');
         $('#srcAudioNote').text("Required: Used for cover generation.");
-  //      
+        
         $('#refAudioOptionalBadge').removeClass('hidden');
         $('#refAudioNote').text("Optional: Used for style reference.");
     }   
@@ -385,11 +416,12 @@ function updateAudioVisibility(taskType) {
         // Display source audio ( and repainting_start and repainting_end ) with it being required. ( and add note that source is required )
         $('#srcAudioSection').removeClass('hidden');
         $('#repaintingFields').removeClass('hidden');
-  //      
+        
         $('#srcAudioRequiredBadge').removeClass('hidden');
         $('#srcAudioNote').text("Required: Used for repaint generation.");
     }
 }
+
 // Reset to Defaults
 $('#resetToDefaultsBtn').on('click', function() {
 const defaults = {{ defaults|tojson }};
@@ -404,12 +436,7 @@ $('#task_type').val('text2music').trigger('change');
 $('#synth_model').trigger('change');
 showSuccess("Form reset to defaults");
 });
-// Cleanup All
-$('#cleanupAllBtn').on('click', function() {
-if(confirm("Delete ALL generated files?")) {
-$.post('/cleanup_all', function(res) { showSuccess("Cleanup completed."); });
-}
-});
+
 // LLM Enhancement
 $('#enhanceBtn').on('click', function(e) {
 e.preventDefault();
@@ -451,6 +478,7 @@ showError("LLM Error: " + (xhr.responseJSON?.message || "Unknown error"));
 complete: function() { $('#enhanceBtn').prop('disabled', false); setLoading(null); }
 });
 });
+
 // LLM Analyze Logic
 $('#analyzeBtn').on('click', function(e) {
     e.preventDefault();
@@ -510,6 +538,7 @@ $('#analyzeBtn').on('click', function(e) {
         }
     });
 });
+
 // GENERATE BASE JSON (CRITICAL FEATURE FIX)
 $('#generateJsonBtn').on('click', function(e) {
 e.preventDefault();
@@ -545,6 +574,7 @@ showError("JSON Error: " + (xhr.responseJSON?.message || "Unknown error"));
 complete: function() { setLoading(null); }
 });
 });
+
 // NEW FEATURE: LOAD JSON FILE
 $('#loadJsonBtn').on('click', function() {
 const fileInput = document.createElement('input');
@@ -574,6 +604,100 @@ document.body.appendChild(fileInput);
 fileInput.click();
 fileInput.remove(); // Clean up after selection
 });
+
+// Generate Batch
+$('#generateBatchBtn').on('click', function(e) {
+    e.preventDefault();
+    
+    // Check if Caption is empty
+    if ($('#caption').val().trim() === '') {
+        showError("Caption is a required field and cannot be empty.");
+        $('#caption').focus();
+        return;
+    }
+    
+    // Check for required audio files based on task type
+    const taskType = $('#task_type').val();
+    let audioError = "";
+    if (taskType === 'cover' || taskType === 'cover-nofsq' || taskType === 'repaint') {
+        const srcFile = $('#src_audio')[0].files.length;
+        if (srcFile === 0) {
+            audioError = "Source Audio (src_audio) is required for " + taskType + ".";
+        }
+    }
+    if (audioError !== "") {
+        showError(audioError);
+        return;
+    }
+    
+    const batch_size = $('#batch_size').val();
+    if (batch_size <= 0) {
+        showError("Batch size must be greater than 0.");
+        return;
+    }
+    
+    batchActive = true;
+    const formData = new FormData($('#musicForm')[0]);
+    formData.set('enhance_via_llm', 'false');
+    formData.set('batch_size', batch_size);
+    
+    setLoading('Generating batch...');
+    $('#generateBatchBtn').prop('disabled', true);
+    $('#batchStatus').removeClass('hidden');
+    $('#batchTotal').text(batch_size);
+    
+    $.ajax({
+        url: '/generate_batch',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.status === 'success') {
+                // Automatically download the zip file
+                const zipUrl = response.download_url;
+                const a = document.createElement('a');
+                a.href = zipUrl;
+                a.download = `${response.base_filename}_bundle.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                showSuccess(`Batch generation completed. Downloading ${batch_size} files...`);
+            } else if (response.status === 'partial_success') {
+                // If some items failed, still download what succeeded
+                const zipUrl = response.download_url;
+                const a = document.createElement('a');
+                a.href = zipUrl;
+                a.download = `${response.base_filename}_bundle.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                showSuccess(`Batch generation completed with some errors. Downloading ${batch_size} files...`);
+            } else {
+                showError(response.message || 'Batch generation failed.');
+            }
+        },
+        error: function(xhr) {
+            let msg = 'Server Error.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                msg = xhr.responseJSON.message;
+                if (xhr.responseJSON.details) {
+                    msg += '<br><small>' + xhr.responseJSON.details + '</small>';
+                }
+            }
+            showError(msg);
+        },
+        complete: function() { 
+            setLoading(null); 
+            $('#generateBatchBtn').prop('disabled', false);
+            $('#batchStatus').addClass('hidden');
+            batchActive = false;
+        }
+    });
+});
+
 // Main Generation (Updated to check Caption Required Field)
 $('#musicForm').on('submit', function(e) {
 e.preventDefault();
@@ -596,9 +720,7 @@ if (audioError !== "") {
     showError(audioError);
     return;
 }
-if (currentBaseFilename) {
-$.post('/cleanup', JSON.stringify({base_filename: currentBaseFilename}));
-}
+// Removed the cleanup call since it's now handled in the backend
 const formData = new FormData(this);
 formData.set('enhance_via_llm', 'false');
 setLoading('Generating music...');
@@ -635,11 +757,10 @@ showError(msg);
 complete: function() { setLoading(null); $('#generateBtn').prop('disabled', false); }
 });
 });
+
 // New Generation
 $('#newGenerationBtn').on('click', function() {
-if (currentBaseFilename) {
-$.post('/cleanup', JSON.stringify({base_filename: currentBaseFilename}));
-}
+// Removed the cleanup call since it's now handled in the backend
 $('#results').addClass('hidden');
 $('#musicForm')[0].reset();
 $('#task_type').val('text2music').trigger('change');

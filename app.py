@@ -1,3 +1,4 @@
+# app.py - Complete file with fixed batch functionality
 import os            
 import json            
 import subprocess            
@@ -90,6 +91,9 @@ class MusicGenApp:
 
         @self.app.route('/generate_json', methods=['POST'])            
         def generate_json_only():            
+            # Cleanup previous generation files first
+            self._cleanup_generation_files()
+            
             form_data = request.form.to_dict()            
             src_audio_path = ref_audio_path = None            
             if 'src_audio' in request.files and request.files['src_audio'].filename:            
@@ -138,6 +142,9 @@ class MusicGenApp:
 
         @self.app.route('/analyze_llm', methods=['POST'])
         def analyze_llm():
+            # Cleanup previous generation files first
+            self._cleanup_generation_files()
+            
             form_data = request.form.to_dict()
             ref_audio_path = None
 
@@ -197,6 +204,9 @@ class MusicGenApp:
 
         @self.app.route('/generate', methods=['POST'])            
         def generate():            
+            # Cleanup previous generation files first
+            self._cleanup_generation_files()
+            
             form_data = request.form.to_dict()            
             use_llm = form_data.pop('enhance_via_llm', 'false').lower() == 'true'            
             src_audio_path = ref_audio_path = None            
@@ -300,6 +310,168 @@ class MusicGenApp:
                     "details": f"Exit code: {e.returncode}\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}"            
                 })    
 
+        @self.app.route('/generate_batch', methods=['POST'])            
+        def generate_batch():            
+            # Cleanup previous generation files first
+            self._cleanup_generation_files()
+            
+            form_data = request.form.to_dict()            
+            use_llm = form_data.pop('enhance_via_llm', 'false').lower() == 'true'            
+            batch_size = safe_int(form_data.get('batch_size', 1), 1)            
+            src_audio_path = ref_audio_path = None            
+            
+            # Generate a unique base name for this batch run
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            batch_base_filename = f"musicgen_batch_{timestamp}"
+            
+            # Save reference and source audio with the batch base filename
+            if 'src_audio' in request.files and request.files['src_audio'].filename:            
+                file = request.files['src_audio']            
+                filename = secure_filename(file.filename)            
+                src_audio_path = GENERATION_DIR / f"src_{batch_base_filename}_{uuid.uuid4().hex}_{filename}"            
+                file.save(src_audio_path)            
+            
+            if 'ref_audio' in request.files and request.files['ref_audio'].filename:            
+                file = request.files['ref_audio']            
+                filename = secure_filename(file.filename)            
+                ref_audio_path = GENERATION_DIR / f"ref_{batch_base_filename}_{uuid.uuid4().hex}_{filename}"            
+                file.save(ref_audio_path)            
+            
+            json_payload = {**DEFAULTS}            
+            for key, val in form_data.items():            
+                if key == "keyscale":            
+                    json_payload[key] = str(val)            
+                elif key in INT_FIELDS:            
+                    json_payload[key] = safe_int(val, DEFAULTS.get(key, 0))            
+                elif key in FLOAT_FIELDS:            
+                    json_payload[key] = safe_float(val, DEFAULTS.get(key, 0.0))            
+                else:            
+                    json_payload[key] = val            
+            # Strip model paths            
+            for mkey in ("synth_model", "lm_model"):            
+                if json_payload.get(mkey):            
+                    json_payload[mkey] = os.path.basename(json_payload[mkey])            
+            # Override inference steps            
+            selected_model = form_data.get("synth_model")            
+            if selected_model in MODEL_STEPS:            
+                json_payload["inference_steps"] = MODEL_STEPS[selected_model]            
+            # Generate batch JSON file
+            batch_json_path = GENERATION_DIR / f"{batch_base_filename}.json"            
+            with open(batch_json_path, 'w') as f:            
+                json.dump(json_payload, f, indent=4)            
+            # LLM enhancement for batch (if requested)            
+            if use_llm:            
+                cmd = [str(BIN_DIR / "ace-lm"), "--models", str(MODELS_DIR), "--request", str(batch_json_path)]            
+                try:            
+                    logger.info(f"Running LLM enhancement for batch: {' '.join(cmd)}")            
+                    result = subprocess.run(cmd, capture_output=True, text=True, check=True)            
+                    llm_json_path = GENERATION_DIR / f"{batch_base_filename}0.json"            
+                    if not llm_json_path.exists():            
+                        return jsonify({            
+                            "status": "error",            
+                            "message": "LLM output file missing for batch.",            
+                            "details": result.stdout + "\n" + result.stderr            
+                        })            
+                    with open(llm_json_path) as f:            
+                        enhanced = json.load(f)            
+                    logger.info("LLM enhancement successful for batch.")            
+                    # Apply enhanced values to batch settings
+                    for key, val in enhanced.items():            
+                        if key in json_payload:            
+                            json_payload[key] = val            
+                except subprocess.CalledProcessError as e:            
+                    return jsonify({            
+                        "status": "error",            
+                        "message": "LLM Batch Enhancement Failed",            
+                        "details": f"Exit code: {e.returncode}\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}"            
+                    })            
+            # Generate batch of music
+            batch_results = []            
+            batch_errors = []            
+            for i in range(batch_size):            
+                # Generate random seed for each item
+                seed = safe_int(form_data.get('seed', 0), 0)            
+                if seed == 0:            
+                    seed = int(uuid.uuid4().hex[:8], 16) % (2**32 - 1) + 1            
+                json_payload["seed"] = seed            
+                batch_item_filename = f"{batch_base_filename}_{i+1}"            
+                batch_item_json_path = GENERATION_DIR / f"{batch_item_filename}.json"            
+                with open(batch_item_json_path, 'w') as f:            
+                    json.dump(json_payload, f, indent=4)            
+                # Synthesis            
+                extra_args = []            
+                if src_audio_path:            
+                    extra_args += ["--src-audio", str(src_audio_path)]            
+                if ref_audio_path:            
+                    extra_args += ["--ref-audio", str(ref_audio_path)]            
+                if form_data.get('clamp_fp16') == 'on':            
+                    extra_args.append("--clamp-fp16")            
+                cmd = [str(BIN_DIR / "ace-synth"), "--models", str(MODELS_DIR), "--request", str(batch_item_json_path)] + extra_args            
+                try:            
+                    logger.info(f"Running synthesis for batch item {i+1}: {' '.join(cmd)}")            
+                    result = subprocess.run(cmd, capture_output=True, text=True, check=True)            
+                    wav_files = list(GENERATION_DIR.glob(f"{batch_item_filename}*.wav"))            
+                    if not wav_files:            
+                        wav_files = sorted(GENERATION_DIR.glob("*.wav"), key=os.path.getmtime)            
+                    if wav_files:            
+                        latest_wav = wav_files[-1]            
+                        batch_results.append({            
+                            "status": "success",            
+                            "base_filename": batch_item_filename,            
+                            "wav_url": f"/download/file?path={latest_wav.name}",            
+                            "download_url": f"/download/all?base={batch_item_filename}"            
+                        })            
+                    else:            
+                        batch_errors.append({            
+                            "status": "error",            
+                            "message": f"No WAV file generated for batch item {i+1}.",            
+                            "details": f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"            
+                        })            
+                except subprocess.CalledProcessError as e:            
+                    batch_errors.append({            
+                        "status": "error",            
+                        "message": f"Synthesis Failed for batch item {i+1}",            
+                        "details": f"Exit code: {e.returncode}\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}"            
+                    })            
+            # If there were errors, return them
+            if batch_errors:            
+                return jsonify({            
+                    "status": "partial_success",            
+                    "message": "Some batch items failed",            
+                    "batch_results": batch_results,            
+                    "batch_errors": batch_errors            
+                })            
+            # Create zip bundle for all batch results
+            zip_path = GENERATION_DIR / f"{batch_base_filename}_bundle.zip"            
+            with zipfile.ZipFile(zip_path, 'w') as zf:            
+                # Add all JSON files
+                for f in GENERATION_DIR.glob(f"{batch_base_filename}_*.json"):            
+                    zf.write(f, f.name)            
+                # Add all WAV files
+                for f in GENERATION_DIR.glob(f"{batch_base_filename}_*.wav"):            
+                    zf.write(f, f.name)            
+                # Add reference audio files if they exist
+                if ref_audio_path and ref_audio_path.exists():
+                    zf.write(ref_audio_path, ref_audio_path.name)            
+                # Add source audio files if they exist
+                if src_audio_path and src_audio_path.exists():
+                    zf.write(src_audio_path, src_audio_path.name)            
+            # Return the zip file for download
+            return jsonify({            
+                "status": "success",            
+                "message": "Batch generation completed",            
+                "base_filename": batch_base_filename,            
+                "download_url": f"/download/batch?base={batch_base_filename}"            
+            })    
+
+        @self.app.route('/download/batch')            
+        def download_batch():            
+            base_name = request.args.get('base')            
+            zip_path = GENERATION_DIR / f"{base_name}_bundle.zip"            
+            if zip_path.exists():            
+                return send_file(zip_path, as_attachment=True)            
+            return jsonify({"error": "Batch bundle not found"}), 404    
+
         @self.app.route('/download/all')            
         def download_all():            
             base_name = request.args.get('base')            
@@ -339,19 +511,20 @@ class MusicGenApp:
                         logger.warning(f"Failed to delete {f}: {e}")            
             return jsonify({"status": "cleaned"})    
 
-        @self.app.route('/cleanup_all', methods=['POST'])            
-        def cleanup_all():            
-            try:            
-                deleted = []            
-                for f in GENERATION_DIR.iterdir():            
-                    if f.is_file():            
-                        f.unlink()            
-                        deleted.append(f.name)            
-                logger.info(f"Cleaned all: {deleted}")            
-                return jsonify({"status": "cleaned_all", "deleted": deleted})            
-            except Exception as e:            
-                logger.error(f"Cleanup all failed: {e}")            
-                return jsonify({"status": "error", "message": str(e)}), 500    
+        # Removed the cleanup_all route entirely
+        
+    def _cleanup_generation_files(self):
+        """Cleanup files from previous generation runs"""
+        try:
+            deleted = []
+            for f in GENERATION_DIR.iterdir():
+                if f.is_file() and (f.name.startswith("musicgen_") or f.name.startswith("ref_") or f.name.startswith("src_")):
+                    f.unlink()
+                    deleted.append(f.name)
+            if deleted:
+                logger.info(f"Cleaned previous generation files: {deleted}")
+        except Exception as e:
+            logger.error(f"Cleanup previous files failed: {e}")
 
     def run(self, host='0.0.0.0', port=3000, debug=False):            
         self.app.run(host=host, port=port, debug=debug)    

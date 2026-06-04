@@ -360,6 +360,12 @@ $(document).ready(function() {
 let currentBaseFilename = '';
 let batchActive = false;
 
+// Function to clear error messages before new operations
+function clearError() {
+    const $error = $('#error');
+    $error.addClass('hidden');
+}
+
 // Model Change Listener
 $('#synth_model').on('change', function() {
 const steps = $(this).find('option:selected').data('inference-steps');
@@ -444,6 +450,8 @@ const formData = new FormData($('#musicForm')[0]);
 formData.set('enhance_via_llm', 'true');
 setLoading('Processing enhancement...');
 $(this).prop('disabled', true);
+// Clear any existing error message before starting new operation
+clearError();
 $.ajax({
 url: '/generate',
 type: 'POST',
@@ -473,7 +481,8 @@ showError(response.message || "Enhancement failed.");
 }
 },
 error: function(xhr) {
-showError("LLM Error: " + (xhr.responseJSON?.message || "Unknown error"));
+let msg = "LLM Error: " + (xhr.responseJSON?.message || "Unknown error");
+showError(msg);
 },
 complete: function() { $('#enhanceBtn').prop('disabled', false); setLoading(null); }
 });
@@ -491,6 +500,8 @@ $('#analyzeBtn').on('click', function(e) {
     const formData = new FormData($('#musicForm')[0]);
     setLoading('Analyzing audio with LLM...');
     $(this).prop('disabled', true);
+    // Clear any existing error message before starting new operation
+    clearError();
     $.ajax({
         url: '/analyze_llm',
         type: 'POST',
@@ -544,6 +555,8 @@ $('#generateJsonBtn').on('click', function(e) {
 e.preventDefault();
 const formData = new FormData($('#musicForm')[0]);
 setLoading('Generating JSON file...');
+// Clear any existing error message before starting new operation
+clearError();
 $.ajax({
 url: '/generate_json',
 type: 'POST',
@@ -569,7 +582,8 @@ showError(response.message || "JSON Generation failed.");
 }
 },
 error: function(xhr) {
-showError("JSON Error: " + (xhr.responseJSON?.message || "Unknown error"));
+let msg = "JSON Error: " + (xhr.responseJSON?.message || "Unknown error");
+showError(msg);
 },
 complete: function() { setLoading(null); }
 });
@@ -645,6 +659,8 @@ $('#generateBatchBtn').on('click', function(e) {
     $('#generateBatchBtn').prop('disabled', true);
     $('#batchStatus').removeClass('hidden');
     $('#batchTotal').text(batch_size);
+    // Clear any existing error message before starting new operation
+    clearError();
     
     $.ajax({
         url: '/generate_batch',
@@ -726,6 +742,8 @@ formData.set('enhance_via_llm', 'false');
 setLoading('Generating music...');
 $('#generateBtn').prop('disabled', true);
 $('#results').addClass('hidden');
+// Clear any existing error message before starting new operation
+clearError();
 $.ajax({
 url: '/generate',
 type: 'POST',
@@ -766,6 +784,8 @@ $('#musicForm')[0].reset();
 $('#task_type').val('text2music').trigger('change');
 $('#synth_model').trigger('change');
 currentBaseFilename = '';
+// Clear any existing error message when starting a new generation
+clearError();
 });
 // Clear Audio Files
 $('#clearRefBtn').on('click', function() {

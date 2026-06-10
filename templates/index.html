@@ -111,6 +111,31 @@ max-width: 160px; /* Keep compact */
 .batch-status {
     @apply text-sm mt-2 text-[#f0f0f0];
 }
+/* Adapter Section Styles - UPDATED */
+.adapter-section {
+    @apply mt-4;
+}
+.adapter-select {
+    @apply px-3 py-2 rounded-md border focus:outline-none focus:ring-2 text-sm;
+    background-color: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-primary) !important;
+    box-shadow: 0 0 0 0.25rem var(--focus-ring);
+    /* CHANGE: Fixed width for the dropdown so scale sits next to it */
+    width: 25rem; 
+    max-width: 25rem;
+}
+.adapter-scale-input {
+    @apply px-3 py-2 rounded-md border focus:outline-none focus:ring-2 text-sm;
+    background-color: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-primary) !important;
+    box-shadow: 0 0 0 0.25rem var(--focus-ring);
+    max-width: 100px;
+}
+.adapter-toggle {
+    @apply text-sm text-[#f0f0f0];
+}
 </style>
 </head>
 <body class="h-full text-white">
@@ -193,6 +218,29 @@ max-width: 160px; /* Keep compact */
         </div>
     </div>
 </div>
+
+<!-- ADAPTER SECTION: UPDATED (Expanded Dropdown, Scale Moved Side-by-Side, Clear Below) -->
+<div id="adapterSection" class="adapter-section">
+    <!-- Row 1: Adapter Dropdown and Scale Input (Side-by-side) -->
+    <div class="flex items-center gap-2 mb-1">
+        <label class="block text-sm font-medium text-[#f0f0f0] mb-1">Adapters: LORA, etc</label>
+        <select id="adapter" name="adapter" class="adapter-select">
+            <option value="">-- None (Disable) --</option>
+            {% for f in adapter_files %}
+            <option value="{{ f }}">{{ f }}</option>
+            {% endfor %}
+        </select>
+        <label class="block text-sm font-medium text-[#f0f0f0] mb-1">Scale</label>
+        <input type="number" id="adapter_scale" name="adapter_scale" step="0.01"
+            class="adapter-scale-input bg-[#2d2d2d] text-white border border-[#444]"
+            value="{{ defaults.adapter_scale }}">
+    </div>
+    <!-- Row 2: Clear Button -->
+    <div class="flex items-center mt-2">
+        <button type="button" id="clearAdapterBtn" class="clear-btn">Clear</button>
+    </div>
+</div>
+
 <!-- Lyrics - full width (Matching Caption width) -->
 <div class="space-y-2">
 <label class="block text-sm font-medium text-[#f0f0f0]">Lyrics</label>
@@ -520,7 +568,6 @@ $('#analyzeBtn').on('click', function(e) {
                 if (data.keyscale) $('#keyscale').val(data.keyscale);
                 if (data.timesignature) $('#timesignature').val(data.timesignature);
                 if (data.vocal_language) $('#vocal_language').val(data.vocal_language);
-                // Optional: Map inference parameters if provided by the model
                 if (data.seed && data.seed !== -1) $('#seed').val(data.seed);
                 if (data.lm_temperature) $('#lm_temperature').val(data.lm_temperature);
                 if (data.lm_cfg_scale) $('#lm_cfg_scale').val(data.lm_cfg_scale);
@@ -797,6 +844,11 @@ $('#clearSrcBtn').on('click', function() {
 $('#src_audio').val('');
 $('#src_audio')[0].files = new DataTransfer().files;
 showSuccess("Source audio cleared");
+});
+// Clear Adapter
+$('#clearAdapterBtn').on('click', function() {
+    $('#adapter').val('');
+    $('#adapter_scale').val({{ defaults.adapter_scale }});
 });
 // Random Seed Generator Logic
 $('#randomSeedBtn').on('click', function() {

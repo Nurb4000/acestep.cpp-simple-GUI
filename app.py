@@ -1,4 +1,4 @@
-# app.py - Complete file with fixed batch functionality
+# app.py - Complete file with fixed batch functionality and adapter support
 import os            
 import json            
 import subprocess            
@@ -16,6 +16,8 @@ BASE_DIR = Path(__file__).resolve().parent
 BIN_DIR = BASE_DIR / "bin"            
 MODELS_DIR = BASE_DIR / "models"            
 GENERATION_DIR = BASE_DIR / "generation"            
+ADAPTERS_DIR = BASE_DIR / "adapters"
+ADAPTERS_DIR.mkdir(exist_ok=True)            
 GENERATION_DIR.mkdir(exist_ok=True)    
 
 # --- Logging Setup ---            
@@ -40,7 +42,7 @@ DEFAULTS = {
     "lm_mode": "generate", "output_format": "wav32", "peak_clip": 10, "mp3_bitrate": 128,            
     "synth_model": "./models/acestep-v15-xl-turbo-Q8_0.gguf",            
     "lm_model": "./models/acestep-5Hz-lm-4B-Q8_0.gguf",            
-    "adapter": "", "adapter_scale": 1.0            
+    "adapter": "", "adapter_scale": 1.0  # <-- ADDED
 }    
 
 MODEL_STEPS = {            
@@ -77,6 +79,14 @@ def safe_float(val, default=0.0):
     except (ValueError, TypeError):            
         return default    
 
+def get_adapter_files():
+    """Returns list of adapter files in ADAPTERS_DIR (all extensions)"""
+    try:
+        return [f.name for f in ADAPTERS_DIR.glob("*") if f.is_file()]
+    except Exception as e:
+        logger.warning(f"Could not list adapters: {e}")
+        return []
+
 class MusicGenApp:            
     def __init__(self):            
         self.app = Flask(__name__, template_folder='templates')            
@@ -87,7 +97,8 @@ class MusicGenApp:
     def _setup_routes(self):            
         @self.app.route('/')            
         def index():            
-            return render_template('index.html', defaults=DEFAULTS)    
+            adapter_files = get_adapter_files()
+            return render_template('index.html', defaults=DEFAULTS, adapter_files=adapter_files)    
 
         @self.app.route('/generate_json', methods=['POST'])            
         def generate_json_only():            
@@ -282,6 +293,14 @@ class MusicGenApp:
                 extra_args += ["--ref-audio", str(ref_audio_path)]            
             if form_data.get('clamp_fp16') == 'on':            
                 extra_args.append("--clamp-fp16")            
+            # ADAPTER SUPPORT: Add --adapters directory only (not full file path)
+            adapter_file = json_payload.get("adapter")
+            if adapter_file and adapter_file.strip():
+                extra_args += ["--adapters", str(ADAPTERS_DIR)]
+                # Add scale only if non-default
+                scale = json_payload.get("adapter_scale", 1.0)
+                if scale != 1.0:
+                    extra_args += ["--adapter-scale", str(scale)]
             cmd = [str(BIN_DIR / "ace-synth"), "--models", str(MODELS_DIR), "--request", str(base_json_path)] + extra_args            
             try:            
                 logger.info(f"Running synthesis: {' '.join(cmd)}")            
@@ -406,6 +425,14 @@ class MusicGenApp:
                     extra_args += ["--ref-audio", str(ref_audio_path)]            
                 if form_data.get('clamp_fp16') == 'on':            
                     extra_args.append("--clamp-fp16")            
+                # ADAPTER SUPPORT: Add --adapters directory only (not full file path)
+                adapter_file = json_payload.get("adapter")
+                if adapter_file and adapter_file.strip():
+                    extra_args += ["--adapters", str(ADAPTERS_DIR)]
+                    # Add scale only if non-default
+                    scale = json_payload.get("adapter_scale", 1.0)
+                    if scale != 1.0:
+                        extra_args += ["--adapter-scale", str(scale)]
                 cmd = [str(BIN_DIR / "ace-synth"), "--models", str(MODELS_DIR), "--request", str(batch_item_json_path)] + extra_args            
                 try:            
                     logger.info(f"Running synthesis for batch item {i+1}: {' '.join(cmd)}")            
@@ -533,5 +560,6 @@ if __name__ == '__main__':
     app_instance = MusicGenApp()            
     print("Starting Music Gen Server...")            
     print(f"Generation Directory: {GENERATION_DIR.resolve()}")            
+    print(f"Adapter Directory: {ADAPTERS_DIR.resolve()}")
 
     app_instance.run(debug=True)

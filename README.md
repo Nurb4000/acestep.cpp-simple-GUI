@@ -16,6 +16,7 @@ Current features:
 - Auto cleanup is back. Each new generation should clear out files from previous ones.
 - Batch generation has been added. This is an external batch process and not the one built into the backend, so you can have it run as many as you want, regardless of your hardware. All you need is patience.  It takes all your current parameters, and randomizes the seed each run.  At the end, it will automatically create and download the zip, which will include all the related jsons, reference files, source files, and results. So it could get big. Note that this auto-zip may change later if we enhance the audio preview feature to support selection in this case of multiple files.
 - For those of us with older GPUs that produce silence, there is now an option in the GUI for this, no need to pass a paramater now. just selct "-clamp-fp16" in the "addtional args" area before generation.
+- For those that have issues with Flash Attn, it can also be disabled.
 - Adapter support in generation.  ( like LORAs )
 - Allows creating the random seed from the UI, not relying on the generation LLM, but you can still pass -1 if you like for the LLM to do it for you. But it wont be stored in the json.
 - And, tho im not real fond of its accuracy on actual lyrics, "llm-Analyze" option is available, to feed the reference audio into the OEM llm ( using the cli defaults ). It will feed the results of its analysis back into the GUI for review/edit/removal/redo, much like LLM-Enhance does, only this time its just listening to the audio track, and not the text you have entered. It does an ok job on structure, so figured it might be of use to have it.
@@ -29,7 +30,8 @@ Be sure to grab python dependencies from the requirements.txt file, which is min
 
 And once again, obligatory ( updated for current featureset ) screenshot:
 
-<img width="795" height="811" alt="image" src="https://github.com/user-attachments/assets/c445d8d9-bef5-40a5-b0bd-417f99d638bf" />
+<img width="782" height="828" alt="image" src="https://github.com/user-attachments/assets/91dafb49-d11e-44ef-9660-69fafb829f8b" />
+
 
 
 

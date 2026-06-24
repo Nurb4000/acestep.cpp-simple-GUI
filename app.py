@@ -293,6 +293,8 @@ class MusicGenApp:
                 extra_args += ["--ref-audio", str(ref_audio_path)]            
             if form_data.get('clamp_fp16') == 'on':            
                 extra_args.append("--clamp-fp16")            
+            if form_data.get('no_fa') == 'on':
+                extra_args.append("--no-fa")
             # ADAPTER SUPPORT: Add --adapters directory only (not full file path)
             adapter_file = json_payload.get("adapter")
             if adapter_file and adapter_file.strip():
@@ -425,6 +427,8 @@ class MusicGenApp:
                     extra_args += ["--ref-audio", str(ref_audio_path)]            
                 if form_data.get('clamp_fp16') == 'on':            
                     extra_args.append("--clamp-fp16")            
+                if form_data.get('no_fa') == 'on':
+                    extra_args.append("--no-fa")
                 # ADAPTER SUPPORT: Add --adapters directory only (not full file path)
                 adapter_file = json_payload.get("adapter")
                 if adapter_file and adapter_file.strip():

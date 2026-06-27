@@ -1,11 +1,11 @@
 # acestep.cpp-simple-GUI
 
-Another super simple web interface for something because im too lazy to type.
-
-This simply creates the json for you, and passes it into the command line to run the generations. With a super simple GUI.
+Just a simple web interface for acestep.cpp.  This uses the CLI option ( not the API ) and genrates the JSONs to be fed into the generator, and handles creating and running the command line for you and manages the outputs with preview and download options, and some LLM options as well.
 
 Current features:
 
+- **Experimental** Added ablity to call an external LLM for "enhancement". This will send the current values in the GUI to a standard llama.cpp endpoint, then update the GUI with its output so you can still edit/whatever before generation like with the local LLM. What is sent to the LLM also includes the format documentaion from Acestep to help guide the LLM.  Be sure to edit code for your URL, what is there now is just a sample. Audio analysis via external LLM is on the menu ...coming soon.
+- Now has some 'common' negative prompts as default. 
 - It presents all the important ( to me anyway ) variables, with what i feel are rational defaults. 
 - Lets you process your prompt using the OEM LLM, and have it fill in the results for you to edit, or totally dismss and try again before actual music generation.
 - Supports uploading a reference and source audio track.
@@ -28,9 +28,10 @@ Then get the minimum required ggufs and drop them into the models folder. ( also
 
 Be sure to grab python dependencies from the requirements.txt file, which is minimal as always - in this case just flask and python-dotenv
 
-And once again, obligatory ( updated for current featureset ) screenshot:
+And once again, obligatory ( always updated for current featureset ) screenshot:
 
-<img width="782" height="828" alt="image" src="https://github.com/user-attachments/assets/91dafb49-d11e-44ef-9660-69fafb829f8b" />
+<img width="732" height="902" alt="image" src="https://github.com/user-attachments/assets/8e11fc02-c43d-403f-8b9d-0be5dab1e74e" />
+
 
 
 

@@ -3,20 +3,24 @@ import os
 import json            
 import subprocess            
 import uuid            
+import re
 from datetime import datetime            
 from flask import Flask, request, jsonify, send_file, render_template            
 from werkzeug.utils import secure_filename            
 from pathlib import Path            
 import zipfile            
 import logging            
-from io import BytesIO    
+from io import BytesIO
+import requests
 
-# --- Configuration & Constants ---            
+# --- Configuration & Constants            
 BASE_DIR = Path(__file__).resolve().parent            
 BIN_DIR = BASE_DIR / "bin"            
 MODELS_DIR = BASE_DIR / "models"            
 GENERATION_DIR = BASE_DIR / "generation"            
 ADAPTERS_DIR = BASE_DIR / "adapters"
+
+EXTERNAL_LLM_URL = "http://192.168.0.1:8080/" #example URL Replace with yours
 ADAPTERS_DIR.mkdir(exist_ok=True)            
 GENERATION_DIR.mkdir(exist_ok=True)    
 
@@ -33,7 +37,7 @@ DEFAULTS = {
     "caption": "", "lyrics": "", "bpm": 0, "duration": 0, "keyscale": "",            
     "timesignature": "", "vocal_language": "en", "seed": 0, "lm_batch_size": 1,            
     "synth_batch_size": 1, "lm_temperature": 0.85, "lm_cfg_scale": 2.0,            
-    "lm_top_p": 0.9, "lm_top_k": 0, "lm_negative_prompt": "", "use_cot_caption": True,            
+    "lm_top_p": 0.9, "lm_top_k": 0, "lm_negative_prompt": "bad audio, robotic vocals, autotune, distortion, whispering, spoken word, overly loud backing vocals, midi artifact, mechanical piano, guitar solo, glitchy drums, overcompressed, muddy mix, muddy bass, heavy reverb, crowd noise, background noise, unwanted silence, chaotic arrangement, predictable loops, repetitive", "use_cot_caption": True,            
     "audio_codes": "", "inference_steps": 20, "guidance_scale": 0.0, "shift": 0.0,            
     "dcw_scaler": 0.0, "dcw_high_scaler": 0.0, "dcw_mode": "low",            
     "audio_cover_strength": 1.0, "cover_noise_strength": 0.0, "repainting_start": 0,            
@@ -91,7 +95,14 @@ class MusicGenApp:
     def __init__(self):            
         self.app = Flask(__name__, template_folder='templates')            
         self.app.config['SECRET_KEY'] = 'musicgen_secret_key_12345'            
-        self.app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024            
+        self.app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+        guide_path = BASE_DIR / "Song Writing Guide.md"
+        if guide_path.exists():
+            self.song_writing_guide = guide_path.read_text(encoding='utf-8')
+            logger.info("Song Writing Guide loaded successfully.")
+        else:
+            self.song_writing_guide = ""
+            logger.warning("Song Writing Guide.md not found - external LLM enhance will not include format guide.")
         self._setup_routes()    
 
     def _setup_routes(self):            
@@ -295,6 +306,7 @@ class MusicGenApp:
                 extra_args.append("--clamp-fp16")            
             if form_data.get('no_fa') == 'on':
                 extra_args.append("--no-fa")
+            extra_args += ["--vae-chunk", "512", "--vae-overlap", "128"]
             # ADAPTER SUPPORT: Add --adapters directory only (not full file path)
             adapter_file = json_payload.get("adapter")
             if adapter_file and adapter_file.strip():
@@ -330,6 +342,95 @@ class MusicGenApp:
                     "message": "Synthesis Failed",            
                     "details": f"Exit code: {e.returncode}\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}"            
                 })    
+
+        @self.app.route('/enhance_external', methods=['POST'])
+        def enhance_external():
+            self._cleanup_generation_files()
+
+            form_data = request.form.to_dict()
+
+            relevant_keys = {
+                "caption", "lyrics", "duration", "bpm", "keyscale",
+                "timesignature", "vocal_language", "seed", "shift",
+                "audio_codes", "lm_temperature", "lm_cfg_scale",
+                "lm_top_p", "lm_top_k", "task_type"
+            }
+            current_params = {k: v for k, v in form_data.items() if k in relevant_keys}
+
+            guide_content = self.song_writing_guide
+            system_prompt = (
+                "You are a professional music production assistant specializing in ACE-Step song generation.\n\n"
+                f"{guide_content}\n\n"
+                "## Your Task\n"
+                "Analyze and enhance the user's song parameters. Return ONLY valid JSON — no explanations, "
+                "no markdown, no code fences.\n\n"
+                "## Lyrics Requirements (CRITICAL)\n"
+                "- Lyrics MUST include proper song structure tags: [Intro], [Verse], [Chorus], [Bridge], [Outro], etc.\n"
+                "- Match lyric length and number of sections to the song's duration:\n"
+                "  * <60s: 1 verse + 1 chorus (6-10 lines total)\n"
+                "  * 60-120s: 1-2 verses + 2 choruses\n"
+                "  * 120-180s: 2 verses + 2 choruses + optional bridge\n"
+                "  * >180s: 2-3 verses + 2-3 choruses + bridge + intro/outro\n"
+                "- Do NOT generate absurdly long lyrics for short durations or vice versa.\n"
+                "- Each lyric line should be 6-10 syllables.\n"
+                "- Use blank lines between sections.\n\n"
+                "## Output JSON fields (include only as relevant)\n"
+                "caption, lyrics, bpm, duration, keyscale, timesignature, vocal_language, "
+                "lm_temperature, lm_cfg_scale, lm_top_p, lm_top_k, seed, shift, audio_codes"
+            )
+
+            user_prompt = (
+                "Current song parameters:\n"
+                f"{json.dumps(current_params, indent=2)}\n\n"
+                "Enhance these parameters following the songwriting guide strictly. "
+                "Make sure lyrics have proper section tags ([Verse], [Chorus], etc.) and that "
+                "the amount of lyrical content fits the specified duration. "
+                "Return ONLY valid JSON."
+            )
+
+            try:
+                logger.info("Calling external LLM for enhancement...")
+                resp = requests.post(
+                    f"{EXTERNAL_LLM_URL.rstrip('/')}/v1/chat/completions",
+                    json={
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        "temperature": 0.7,
+                        "max_tokens": 4096
+                    },
+                    timeout=120
+                )
+                resp.raise_for_status()
+                result = resp.json()
+                content = result["choices"][0]["message"]["content"]
+
+                try:
+                    enhanced = json.loads(content)
+                except json.JSONDecodeError:
+                    json_match = re.search(r'```(?:json)?\s*\n?([\s\S]*?)```', content)
+                    if json_match:
+                        enhanced = json.loads(json_match.group(1).strip())
+                    else:
+                        raise ValueError("Could not parse JSON from LLM response")
+
+                logger.info("External LLM enhancement successful.")
+                return jsonify({
+                    "status": "enhanced",
+                    "enhanced_data": enhanced
+                })
+
+            except requests.exceptions.RequestException as e:
+                return jsonify({
+                    "status": "error",
+                    "message": f"External LLM request failed: {str(e)}"
+                }), 500
+            except Exception as e:
+                return jsonify({
+                    "status": "error",
+                    "message": f"External LLM enhancement failed: {str(e)}"
+                }), 500
 
         @self.app.route('/generate_batch', methods=['POST'])            
         def generate_batch():            
@@ -429,6 +530,7 @@ class MusicGenApp:
                     extra_args.append("--clamp-fp16")            
                 if form_data.get('no_fa') == 'on':
                     extra_args.append("--no-fa")
+                extra_args += ["--vae-chunk", "512", "--vae-overlap", "128"]
                 # ADAPTER SUPPORT: Add --adapters directory only (not full file path)
                 adapter_file = json_payload.get("adapter")
                 if adapter_file and adapter_file.strip():

@@ -364,8 +364,10 @@ Load JSON File
 <button type="button" id="analyzeBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">
 LLM Analyze
 </button>
-<!-- Enhance via LLM Button (Moved here) -->
-<button type="button" id="enhanceBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">Enhance via LLM</button>
+<!-- Enhance via Local LLM Button -->
+<button type="button" id="enhanceBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">Enhance via local LLM</button>
+<!-- Enhance via External LLM Button -->
+<button type="button" id="enhanceExternalBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">Enhance via external LLM</button>
 <!-- Generate Music Button (Moved here) -->
 <button type="submit" id="generateBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">
 Generate Music
@@ -537,6 +539,46 @@ let msg = "LLM Error: " + (xhr.responseJSON?.message || "Unknown error");
 showError(msg);
 },
 complete: function() { $('#enhanceBtn').prop('disabled', false); setLoading(null); }
+});
+});
+
+// External LLM Enhancement
+$('#enhanceExternalBtn').on('click', function(e) {
+e.preventDefault();
+const formData = new FormData($('#musicForm')[0]);
+setLoading('Processing external LLM enhancement...');
+$(this).prop('disabled', true);
+clearError();
+$.ajax({
+url: '/enhance_external',
+type: 'POST',
+data: formData,
+processData: false, contentType: false,
+success: function(response) {
+if (response.status === 'enhanced') {
+$('#caption').val(response.enhanced_data.caption || '');
+$('#lyrics').val(response.enhanced_data.lyrics || '[instrumental]');
+$('#duration').val(response.enhanced_data.duration || 0);
+$('#bpm').val(response.enhanced_data.bpm || 0);
+$('#shift').val(response.enhanced_data.shift || 0);
+$('#keyscale').val(response.enhanced_data.keyscale || '');
+$('#seed').val(response.enhanced_data.seed || -1);
+$('#lm_temperature').val(response.enhanced_data.lm_temperature || 0.85);
+$('#lm_cfg_scale').val(response.enhanced_data.lm_cfg_scale || 2.0);
+$('#lm_top_p').val(response.enhanced_data.lm_top_p || 0.9);
+$('#lm_top_k').val(response.enhanced_data.lm_top_k || 0);
+$('#timesignature').val(response.enhanced_data.timesignature || '');
+$('#audio_codes').val(response.enhanced_data.audio_codes || '');
+showSuccess("External LLM Enhancement Complete!");
+} else {
+showError(response.message || "Enhancement failed.");
+}
+},
+error: function(xhr) {
+let msg = "External LLM Error: " + (xhr.responseJSON?.message || "Unknown error");
+showError(msg);
+},
+complete: function() { $('#enhanceExternalBtn').prop('disabled', false); setLoading(null); }
 });
 });
 

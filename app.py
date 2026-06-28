@@ -37,7 +37,7 @@ DEFAULTS = {
     "caption": "", "lyrics": "", "bpm": 0, "duration": 0, "keyscale": "",            
     "timesignature": "", "vocal_language": "en", "seed": 0, "lm_batch_size": 1,            
     "synth_batch_size": 1, "lm_temperature": 0.85, "lm_cfg_scale": 2.0,            
-    "lm_top_p": 0.9, "lm_top_k": 0, "lm_negative_prompt": "bad audio, robotic vocals, autotune, distortion, whispering, spoken word, overly loud backing vocals, midi artifact, mechanical piano, guitar solo, glitchy drums, overcompressed, muddy mix, muddy bass, heavy reverb, crowd noise, background noise, unwanted silence, chaotic arrangement, predictable loops, repetitive", "use_cot_caption": True,            
+    "lm_top_p": 0.9, "lm_top_k": 0, "lm_negative_prompt": "bad audio, robotic vocals, autotune, distortion, spoken word, overly loud backing vocals, midi artifact, mechanical piano, glitchy drums, overcompressed, muddy mix, muddy bass, heavy reverb, crowd noise, background noise, unwanted silence, chaotic arrangement, predictable loops, repetitive", "use_cot_caption": True,            
     "audio_codes": "", "inference_steps": 20, "guidance_scale": 0.0, "shift": 0.0,            
     "dcw_scaler": 0.0, "dcw_high_scaler": 0.0, "dcw_mode": "low",            
     "audio_cover_strength": 1.0, "cover_noise_strength": 0.0, "repainting_start": 0,            

@@ -359,24 +359,44 @@ class MusicGenApp:
 
             guide_content = self.song_writing_guide
             system_prompt = (
-                "You are a professional music production assistant specializing in ACE-Step song generation.\n\n"
+                "You are an expert AI music producer, lyricist, and prompt engineer for ACE-Step 1.5, "
+                "specializing in song generation.\n\n"
                 f"{guide_content}\n\n"
+                "## CRITICAL INSTRUCTION FOR AUDIO SYNTHESIS\n"
+                "Never use parentheses () for musical or production descriptions, as the audio engine "
+                "will accidentally speak or sing them as literal lyrics. All structure tags, instrumental "
+                "breaks, and musical cues MUST be delimited strictly with brackets []. If a section has no "
+                "vocals, use specific tags like [Intro Instrumental], [Guitar Solo], [Musical Interlude], "
+                "or [Outro Instrumental]. Do not include descriptive words outside of brackets.\n"
+                "WRONG: [Intro] Heavy guitar swells rise, building tension\n"
+                "RIGHT: [Intro Instrumental]\n"
+                "WRONG: [Verse 1] Guitars growl, drums enter with driving force\n"
+                "RIGHT: [Verse 1]\n"
+                "       First line of actual lyrics here\n"
+                "       Second line of lyrics\n\n"
                 "## Your Task\n"
                 "Analyze and enhance the user's song parameters. Return ONLY valid JSON — no explanations, "
                 "no markdown, no code fences.\n\n"
                 "## Lyrics Requirements (CRITICAL)\n"
-                "- Lyrics MUST include proper song structure tags: [Intro], [Verse], [Chorus], [Bridge], [Outro], etc.\n"
+                "- Lyrics MUST include proper song structure tags: [Intro], [Verse 1], [Verse 2], [Chorus], "
+                "[Bridge], [Guitar Solo], [Keyboard Interlude], [Outro Instrumental], etc.\n"
+                "- Use brackets [] for ALL structural and musical cues. Never use parentheses () for these.\n"
                 "- Match lyric length and number of sections to the song's duration:\n"
                 "  * <60s: 1 verse + 1 chorus (6-10 lines total)\n"
                 "  * 60-120s: 1-2 verses + 2 choruses\n"
                 "  * 120-180s: 2 verses + 2 choruses + optional bridge\n"
                 "  * >180s: 2-3 verses + 2-3 choruses + bridge + intro/outro\n"
                 "- Do NOT generate absurdly long lyrics for short durations or vice versa.\n"
-                "- Each lyric line should be 6-10 syllables.\n"
+                "- Each lyric line should be 6-10 syllables and metered rhythmically so the audio synthesis "
+                "aligns properly.\n"
                 "- Use blank lines between sections.\n\n"
                 "## Output JSON fields (include only as relevant)\n"
-                "caption, lyrics, bpm, duration, keyscale, timesignature, vocal_language, "
-                "lm_temperature, lm_cfg_scale, lm_top_p, lm_top_k, seed, shift, audio_codes"
+                "caption should be a dense, descriptive paragraph detailing the genre, instruments, production "
+                "style, sub-genres, vocals, and mood (reference BPM and key-scale in the caption text as well). "
+                "lyrics should contain the full structured lyrics with bracketed tags. "
+                "Other fields (include all as separate JSON keys, do not omit): bpm, duration, keyscale, "
+                "timesignature, vocal_language, lm_temperature, lm_cfg_scale, lm_top_p, lm_top_k, seed, "
+                "shift, audio_codes"
             )
 
             user_prompt = (
@@ -400,7 +420,7 @@ class MusicGenApp:
                         "temperature": 0.7,
                         "max_tokens": 4096
                     },
-                    timeout=120
+                    timeout=300
                 )
                 resp.raise_for_status()
                 result = resp.json()

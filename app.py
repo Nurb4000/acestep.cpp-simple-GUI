@@ -20,7 +20,7 @@ MODELS_DIR = BASE_DIR / "models"
 GENERATION_DIR = BASE_DIR / "generation"            
 ADAPTERS_DIR = BASE_DIR / "adapters"
 
-EXTERNAL_LLM_URL = "http://192.168.0.1:8080/" #example URL Replace with yours
+EXTERNAL_LLM_URL = "http://10.0.1.27:8080/"
 ADAPTERS_DIR.mkdir(exist_ok=True)            
 GENERATION_DIR.mkdir(exist_ok=True)    
 
@@ -38,7 +38,7 @@ DEFAULTS = {
     "timesignature": "", "vocal_language": "en", "seed": 0, "lm_batch_size": 1,            
     "synth_batch_size": 1, "lm_temperature": 0.85, "lm_cfg_scale": 2.0,            
     "lm_top_p": 0.9, "lm_top_k": 0, "lm_negative_prompt": "bad audio, robotic vocals, autotune, distortion, spoken word, overly loud backing vocals, midi artifact, mechanical piano, glitchy drums, overcompressed, muddy mix, muddy bass, heavy reverb, crowd noise, background noise, unwanted silence, chaotic arrangement, predictable loops, repetitive", "use_cot_caption": True,            
-    "audio_codes": "", "inference_steps": 20, "guidance_scale": 0.0, "shift": 0.0,            
+    "audio_codes": "",     "inference_steps": 10, "guidance_scale": 0.0, "shift": 3.0,            
     "dcw_scaler": 0.0, "dcw_high_scaler": 0.0, "dcw_mode": "low",            
     "audio_cover_strength": 1.0, "cover_noise_strength": 0.0, "repainting_start": 0,            
     "repainting_end": -1, "latent_shift": 0.0, "latent_rescale": 1.0,            
@@ -50,7 +50,7 @@ DEFAULTS = {
 }    
 
 MODEL_STEPS = {            
-    "./models/acestep-v15-xl-turbo-Q8_0.gguf": 20,            
+    "./models/acestep-v15-xl-turbo-Q8_0.gguf": 10,            
     "./models/acestep-v15-xl-base-Q8_0.gguf": 50,            
     "./models/acestep-v15-turbo-Q8_0.gguf": 10,            
     "./models/acestep-v15-sft-Q8_0.gguf": 30,            
@@ -391,8 +391,10 @@ class MusicGenApp:
                 "aligns properly.\n"
                 "- Use blank lines between sections.\n\n"
                 "## Output JSON fields (include only as relevant)\n"
-                "caption should be a dense, descriptive paragraph detailing the genre, instruments, production "
-                "style, sub-genres, vocals, and mood (reference BPM and key-scale in the caption text as well). "
+                "caption should start with 2-3 song title suggestions wrapped in curly braces like "
+                "{Title Idea One} {Another Title Idea} {Third Idea}, then a dense, descriptive paragraph "
+                "detailing the genre, instruments, production style, sub-genres, vocals, and mood "
+                "(reference BPM and key-scale in the caption text as well). "
                 "lyrics should contain the full structured lyrics with bracketed tags. "
                 "Other fields (include all as separate JSON keys, do not omit): bpm, duration, keyscale, "
                 "timesignature, vocal_language, lm_temperature, lm_cfg_scale, lm_top_p, lm_top_k, seed, "

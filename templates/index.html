@@ -325,7 +325,7 @@ max-width: 160px; /* Keep compact */
 <div class="space-y-2">
 <label class="block text-sm font-medium text-[#f0f0f0]">Synth Model</label>
 <select id="synth_model" name="synth_model" class="text-input w-full bg-[#2d2d2d] text-white border border-[#444]">
-<option value="./models/acestep-v15-xl-turbo-Q8_0.gguf" data-inference-steps="20" selected>acestep-v15-xl-turbo-Q8_0.gguf (20 steps)</option>
+<option value="./models/acestep-v15-xl-turbo-Q8_0.gguf" data-inference-steps="10" selected>acestep-v15-xl-turbo-Q8_0.gguf (10 steps)</option>
 <option value="./models/acestep-v15-xl-base-Q8_0.gguf" data-inference-steps="50">acestep-v15-xl-base-Q8_0.gguf (50 steps)</option>
 <option value="./models/acestep-v15-turbo-Q8_0.gguf" data-inference-steps="10">acestep-v15-turbo-Q8_0.gguf (10 steps)</option>
 <option value="./models/acestep-v15-sft-Q8_0.gguf" data-inference-steps="30">acestep-v15-sft-Q8_0.gguf (30 steps)</option>
@@ -362,7 +362,7 @@ Load JSON File
 </button>
 <!-- LLM Analyze Button -->
 <button type="button" id="analyzeBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">
-Analyze reference audio via local LLM
+LLM Analyze
 </button>
 <!-- Enhance via Local LLM Button -->
 <button type="button" id="enhanceBtn" class="btn btn-primary w-1/3 text-white bg-[#1a73e8] hover:bg-[#1557b0]">Enhance via local LLM</button>
@@ -560,7 +560,7 @@ $('#caption').val(response.enhanced_data.caption || '');
 $('#lyrics').val(response.enhanced_data.lyrics || '[instrumental]');
 $('#duration').val(response.enhanced_data.duration || 0);
 $('#bpm').val(response.enhanced_data.bpm || 0);
-$('#shift').val(response.enhanced_data.shift || 0);
+$('#shift').val(response.enhanced_data.shift || 3.0);
 $('#keyscale').val(response.enhanced_data.keyscale || '');
 $('#seed').val(response.enhanced_data.seed || -1);
 $('#lm_temperature').val(response.enhanced_data.lm_temperature || 0.85);

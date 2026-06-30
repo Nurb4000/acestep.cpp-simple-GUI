@@ -4,7 +4,7 @@ Just a simple web interface for acestep.cpp.  This uses the CLI option ( not the
 
 Current features:
 
-- **Experimental** Added ablity to call an external LLM for "enhancement". This will send the current values in the GUI to a standard llama.cpp endpoint, then update the GUI with its output so you can still edit/whatever before generation like with the local LLM. What is sent to the LLM also includes the format documentaion from Acestep to help guide the LLM.  Be sure to edit code for your URL, what is there now is just a sample. Audio analysis via external LLM is on the menu ...coming soon.
+- **Experimental** Added ablity to call an external LLM for "enhancement".  This will send the current values in the GUI to a standard llama.cpp endpoint, then update the GUI with its output so you can still edit/whatever before generation like with the local LLM. What is sent to the LLM also includes the format documentaion from Acestep to help guide the LLM. The External prompt also asks for title suggetions of the LLM, and they are placed at the beginning of the caption during the import back into the GUI, delimted by {} Be sure to edit code for your URL, what is there now is just a sample. Audio analysis via external LLM is on the menu ...coming soon.
 - Now has some 'common' negative prompts as default. 
 - It presents all the important ( to me anyway ) variables, with what i feel are rational defaults. 
 - Lets you process your prompt using the OEM LLM, and have it fill in the results for you to edit, or totally dismss and try again before actual music generation.

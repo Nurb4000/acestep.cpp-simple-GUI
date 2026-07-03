@@ -136,6 +136,23 @@ max-width: 160px; /* Keep compact */
 .adapter-toggle {
     @apply text-sm text-[#f0f0f0];
 }
+/* Track Pill Styles */
+.track-pill {
+    @apply px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200;
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.track-pill:hover {
+    border-color: #1a73e8;
+    color: #fff;
+}
+.track-pill.active {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+    color: #fff;
+}
 </style>
 </head>
 <body class="h-full text-white">
@@ -168,6 +185,7 @@ max-width: 160px; /* Keep compact */
 <option value="cover">cover</option>
 <option value="cover-nofsq">cover-nofsq</option>
 <option value="repaint">repaint</option>
+<option value="extract">extract</option>
 </select>
 </div>
 <!-- Audio Cover Strength (2 columns) - Shift moved out of here to the bottom grid -->
@@ -217,6 +235,35 @@ max-width: 160px; /* Keep compact */
             </div>
         </div>
     </div>
+</div>
+
+<!-- Track Extraction Section (visible only for extract task) -->
+<div id="extractSection" class="space-y-3 hidden pt-4 border-t border-[#444]">
+    <div class="flex items-center gap-2">
+        <label class="block text-sm font-medium text-[#f0f0f0]">Extract Tracks</label>
+    </div>
+    <p class="text-xs text-gray-400">Select the track to extract from the source audio.</p>
+    <div id="trackPills" class="flex flex-wrap gap-2">
+        <button type="button" class="track-pill" data-track="vocals">vocals</button>
+        <button type="button" class="track-pill" data-track="backing_vocals">backing vocals</button>
+        <button type="button" class="track-pill" data-track="drums">drums</button>
+        <button type="button" class="track-pill" data-track="bass">bass</button>
+        <button type="button" class="track-pill" data-track="guitar">guitar</button>
+        <button type="button" class="track-pill" data-track="keyboard">keyboard</button>
+        <button type="button" class="track-pill" data-track="percussion">percussion</button>
+        <button type="button" class="track-pill" data-track="strings">strings</button>
+        <button type="button" class="track-pill" data-track="synth">synth</button>
+        <button type="button" class="track-pill" data-track="fx">fx</button>
+        <button type="button" class="track-pill" data-track="brass">brass</button>
+        <button type="button" class="track-pill" data-track="woodwinds">woodwinds</button>
+        <button type="button" class="track-pill track-pill-custom" data-track="__custom__">custom...</button>
+    </div>
+    <div id="customTrackInput" class="hidden mt-2">
+        <input type="text" id="custom_track" class="text-input w-full max-w-xs bg-[#2d2d2d] text-white border border-[#444]" placeholder="Enter custom track name..." maxlength="100">
+        <p class="text-xs text-gray-400 mt-1">May not work well if it deviates from standard names above.</p>
+    </div>
+    <input type="hidden" id="track" name="track" value="">
+    <p id="extractModelWarning" class="text-xs text-amber-400 hidden">Note: Extract requires a Base or SFT model (turbo models not supported).</p>
 </div>
 
 <!-- ADAPTER SECTION: UPDATED (Expanded Dropdown, Scale Moved Side-by-Side, Clear Below) -->
@@ -424,6 +471,7 @@ function clearError() {
 $('#synth_model').on('change', function() {
 const steps = $(this).find('option:selected').data('inference-steps');
 $('#inference_steps').val(steps);
+updateExtractModelWarning();
 });
 $('#synth_model').trigger('change'); // Initialize
 
@@ -435,13 +483,45 @@ updateAudioVisibility(taskType);
 // Initialize on load
 updateAudioVisibility($('#task_type').val());
 
+// Track Pill Selection
+$('#trackPills').on('click', '.track-pill', function() {
+    const isCustom = $(this).data('track') === '__custom__';
+    $(this).toggleClass('active');
+    $('.track-pill').not(this).removeClass('active');
+    if ($(this).hasClass('active')) {
+        if (isCustom) {
+            $('#customTrackInput').removeClass('hidden');
+            $('#track').val($('#custom_track').val().trim());
+        } else {
+            $('#customTrackInput').addClass('hidden');
+            $('#track').val($(this).data('track'));
+        }
+    } else {
+        $('#customTrackInput').addClass('hidden');
+        $('#track').val('');
+    }
+});
+$('#custom_track').on('input', function() {
+    if ($('.track-pill-custom.active').length) {
+        $('#track').val($(this).val().trim());
+    }
+});
+
 function updateAudioVisibility(taskType) {
     // Hide all sections initially
     $('#refAudioSection').addClass('hidden');
     $('#srcAudioSection').addClass('hidden');
     $('#repaintingFields').addClass('hidden');
+    $('#extractSection').addClass('hidden');
     
     // Reset badges
+    // Reset extract selections
+    $('.track-pill').removeClass('active');
+    $('#track').val('');
+    $('#custom_track').val('');
+    $('#customTrackInput').addClass('hidden');
+    $('#extractModelWarning').addClass('hidden');
+
     $('#refAudioRequiredBadge, #refAudioOptionalBadge, #srcAudioRequiredBadge, #srcAudioOptionalBadge').addClass('hidden');
     $('#refAudioNote, #srcAudioNote').text('Loading...');
     if (taskType === 'text2music') {
@@ -480,6 +560,30 @@ function updateAudioVisibility(taskType) {
         $('#srcAudioRequiredBadge').removeClass('hidden');
         $('#srcAudioNote').text("Required: Used for repaint generation.");
     }
+    else if (taskType === 'extract') {
+        // Display source audio (required) and reference audio (optional)
+        $('#refAudioSection').removeClass('hidden');
+        $('#srcAudioSection').removeClass('hidden');
+        $('#extractSection').removeClass('hidden');
+        
+        $('#srcAudioRequiredBadge').removeClass('hidden');
+        $('#srcAudioNote').text("Required: Source audio mix for track extraction.");
+        
+        $('#refAudioOptionalBadge').removeClass('hidden');
+        $('#refAudioNote').text("Optional: Timbre reference for extraction.");
+
+        // Show model warning if turbo selected
+        updateExtractModelWarning();
+    }
+}
+
+function updateExtractModelWarning() {
+    const model = $('#synth_model').val();
+    if (model && model.toLowerCase().includes('turbo')) {
+        $('#extractModelWarning').removeClass('hidden');
+    } else {
+        $('#extractModelWarning').addClass('hidden');
+    }
 }
 
 // Reset to Defaults
@@ -494,12 +598,22 @@ $('#' + key).val(value);
 }
 $('#task_type').val('text2music').trigger('change');
 $('#synth_model').trigger('change');
+// Reset extract section
+$('.track-pill').removeClass('active');
+$('#track').val('');
+$('#custom_track').val('');
+$('#customTrackInput').addClass('hidden');
+$('#extractModelWarning').addClass('hidden');
 showSuccess("Form reset to defaults");
 });
 
 // LLM Enhancement
 $('#enhanceBtn').on('click', function(e) {
 e.preventDefault();
+if ($('#task_type').val() === 'extract') {
+    showError("LLM enhancement is not supported for extract tasks. Use Generate Music directly.");
+    return;
+}
 const formData = new FormData($('#musicForm')[0]);
 formData.set('enhance_via_llm', 'true');
 setLoading('Processing enhancement...');
@@ -519,12 +633,12 @@ $('#caption').val(response.enhanced_data.caption || '');
 $('#lyrics').val(response.enhanced_data.lyrics || '[instrumental]');
 $('#duration').val(response.enhanced_data.duration || 0);
 $('#bpm').val(response.enhanced_data.bpm || 0);
-$('#shift').val(response.enhanced_data.shift || 0); // Added Shift to enhancement logic
+$('#shift').val(response.enhanced_data.shift || 10);
 $('#keyscale').val(response.enhanced_data.keyscale || '');
 $('#seed').val(response.enhanced_data.seed || -1);
-$('#lm_temperature').val(response.enhanced_data.lm_temperature || 0.85);
-$('#lm_cfg_scale').val(response.enhanced_data.lm_cfg_scale || 2.0);
-$('#lm_top_p').val(response.enhanced_data.lm_top_p || 0.9);
+$('#lm_temperature').val(response.enhanced_data.lm_temperature || 0.5);
+$('#lm_cfg_scale').val(response.enhanced_data.lm_cfg_scale || 7);
+$('#lm_top_p').val(response.enhanced_data.lm_top_p || 0.5);
 $('#lm_top_k').val(response.enhanced_data.lm_top_k || 0);
 // ADDED MISSING FIELDS FOR TIME SIGNATURE AND AUDIO CODES
 $('#timesignature').val(response.enhanced_data.timesignature || '');
@@ -545,6 +659,10 @@ complete: function() { $('#enhanceBtn').prop('disabled', false); setLoading(null
 // External LLM Enhancement
 $('#enhanceExternalBtn').on('click', function(e) {
 e.preventDefault();
+if ($('#task_type').val() === 'extract') {
+    showError("LLM enhancement is not supported for extract tasks. Use Generate Music directly.");
+    return;
+}
 const formData = new FormData($('#musicForm')[0]);
 setLoading('Processing external LLM enhancement...');
 $(this).prop('disabled', true);
@@ -560,12 +678,12 @@ $('#caption').val(response.enhanced_data.caption || '');
 $('#lyrics').val(response.enhanced_data.lyrics || '[instrumental]');
 $('#duration').val(response.enhanced_data.duration || 0);
 $('#bpm').val(response.enhanced_data.bpm || 0);
-$('#shift').val(response.enhanced_data.shift || 3.0);
+$('#shift').val(response.enhanced_data.shift || 10);
 $('#keyscale').val(response.enhanced_data.keyscale || '');
 $('#seed').val(response.enhanced_data.seed || -1);
-$('#lm_temperature').val(response.enhanced_data.lm_temperature || 0.85);
-$('#lm_cfg_scale').val(response.enhanced_data.lm_cfg_scale || 2.0);
-$('#lm_top_p').val(response.enhanced_data.lm_top_p || 0.9);
+$('#lm_temperature').val(response.enhanced_data.lm_temperature || 0.5);
+$('#lm_cfg_scale').val(response.enhanced_data.lm_cfg_scale || 7);
+$('#lm_top_p').val(response.enhanced_data.lm_top_p || 0.5);
 $('#lm_top_k').val(response.enhanced_data.lm_top_k || 0);
 $('#timesignature').val(response.enhanced_data.timesignature || '');
 $('#audio_codes').val(response.enhanced_data.audio_codes || '');
@@ -726,10 +844,16 @@ $('#generateBatchBtn').on('click', function(e) {
     // Check for required audio files based on task type
     const taskType = $('#task_type').val();
     let audioError = "";
-    if (taskType === 'cover' || taskType === 'cover-nofsq' || taskType === 'repaint') {
+    if (taskType === 'cover' || taskType === 'cover-nofsq' || taskType === 'repaint' || taskType === 'extract') {
         const srcFile = $('#src_audio')[0].files.length;
         if (srcFile === 0) {
             audioError = "Source Audio (src_audio) is required for " + taskType + ".";
+        }
+    }
+    if (taskType === 'extract') {
+        const track = $('#track').val();
+        if (!track) {
+            audioError = "Please select a track to extract.";
         }
     }
     if (audioError !== "") {
@@ -819,18 +943,24 @@ return;
 // Check for required audio files based on task type
 const taskType = $('#task_type').val();
 let audioError = "";
-if (taskType === 'cover' || taskType === 'cover-nofsq' || taskType === 'repaint') {
-    const srcFile = $('#src_audio')[0].files.length;
-    if (srcFile === 0) {
-        audioError = "Source Audio (src_audio) is required for " + taskType + ".";
-    }
-}
-if (audioError !== "") {
-    showError(audioError);
-    return;
-}
-// Removed the cleanup call since it's now handled in the backend
-const formData = new FormData(this);
+        if (taskType === 'cover' || taskType === 'cover-nofsq' || taskType === 'repaint' || taskType === 'extract') {
+            const srcFile = $('#src_audio')[0].files.length;
+            if (srcFile === 0) {
+                audioError = "Source Audio (src_audio) is required for " + taskType + ".";
+            }
+        }
+        if (taskType === 'extract') {
+            const track = $('#track').val();
+            if (!track) {
+                audioError = "Please select a track to extract.";
+            }
+        }
+        if (audioError !== "") {
+            showError(audioError);
+            return;
+        }
+        // Removed the cleanup call since it's now handled in the backend
+        const formData = new FormData(this);
 formData.set('enhance_via_llm', 'false');
 setLoading('Generating music...');
 $('#generateBtn').prop('disabled', true);
@@ -877,6 +1007,12 @@ $('#musicForm')[0].reset();
 $('#task_type').val('text2music').trigger('change');
 $('#synth_model').trigger('change');
 currentBaseFilename = '';
+// Reset extract section
+$('.track-pill').removeClass('active');
+$('#track').val('');
+$('#custom_track').val('');
+$('#customTrackInput').addClass('hidden');
+$('#extractModelWarning').addClass('hidden');
 // Clear any existing error message when starting a new generation
 clearError();
 });

@@ -9,6 +9,7 @@ Current features:
 - It presents all the important ( to me anyway ) variables, with what i feel are rational defaults. 
 - Lets you process your prompt using the OEM LLM, and have it fill in the results for you to edit, or totally dismss and try again before actual music generation.
 - Supports uploading a reference and source audio track.
+- Supports 'track extraction' from the source audio track.
 - Audio preview feature, and will let you download the jsons, output, reference and source, as a zip if you want to keep the set.   
 - Supports selecting the synth model ( the list is hard coded but easily added/changed ). 
 - Rcentely added cover task features. 
@@ -30,7 +31,8 @@ Be sure to grab python dependencies from the requirements.txt file, which is min
 
 And once again, obligatory ( always updated for current featureset ) screenshot:
 
-<img width="742" height="825" alt="image" src="https://github.com/user-attachments/assets/a5d7b064-a384-4278-94c4-7768d18cf165" />
+<img width="759" height="888" alt="image" src="https://github.com/user-attachments/assets/77d8684a-a4f0-4d75-8fc8-e4786a7c5685" />
+
 
 
 

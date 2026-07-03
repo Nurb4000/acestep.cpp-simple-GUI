@@ -20,6 +20,12 @@ MODELS_DIR = BASE_DIR / "models"
 GENERATION_DIR = BASE_DIR / "generation"            
 ADAPTERS_DIR = BASE_DIR / "adapters"
 
+TRACK_NAMES = [
+    "vocals", "backing_vocals", "drums", "bass", "guitar", "keyboard",
+    "percussion", "strings", "synth", "fx", "brass", "woodwinds"
+]
+TURBO_KEYWORDS = ["turbo"]
+
 EXTERNAL_LLM_URL = "http://10.0.1.27:8080/"
 ADAPTERS_DIR.mkdir(exist_ok=True)            
 GENERATION_DIR.mkdir(exist_ok=True)    
@@ -36,9 +42,9 @@ logger = logging.getLogger(__name__)
 DEFAULTS = {            
     "caption": "", "lyrics": "", "bpm": 0, "duration": 0, "keyscale": "",            
     "timesignature": "", "vocal_language": "en", "seed": 0, "lm_batch_size": 1,            
-    "synth_batch_size": 1, "lm_temperature": 0.85, "lm_cfg_scale": 2.0,            
-    "lm_top_p": 0.9, "lm_top_k": 0, "lm_negative_prompt": "bad audio, robotic vocals, autotune, distortion, spoken word, overly loud backing vocals, midi artifact, mechanical piano, glitchy drums, overcompressed, muddy mix, muddy bass, heavy reverb, crowd noise, background noise, unwanted silence, chaotic arrangement, predictable loops, repetitive", "use_cot_caption": True,            
-    "audio_codes": "",     "inference_steps": 10, "guidance_scale": 0.0, "shift": 3.0,            
+    "synth_batch_size": 1, "lm_temperature": 0.5, "lm_cfg_scale": 7,            
+    "lm_top_p": 0.5, "lm_top_k": 0, "lm_negative_prompt": "bad audio, robotic vocals, autotune, distortion, spoken word, overly loud backing vocals, midi artifact, mechanical piano, glitchy drums, overcompressed, muddy mix, muddy bass, heavy reverb, crowd noise, background noise, unwanted silence, chaotic arrangement, predictable loops, repetitive", "use_cot_caption": True,            
+    "audio_codes": "",     "inference_steps": 10, "guidance_scale": 0.0, "shift": 10,            
     "dcw_scaler": 0.0, "dcw_high_scaler": 0.0, "dcw_mode": "low",            
     "audio_cover_strength": 1.0, "cover_noise_strength": 0.0, "repainting_start": 0,            
     "repainting_end": -1, "latent_shift": 0.0, "latent_rescale": 1.0,            
@@ -224,17 +230,36 @@ class MusicGenApp:
                     "details": f"Exit code: {e.returncode}\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}"
                 }), 500
 
+        def _is_turbo_model(model_path):
+            model_basename = os.path.basename(model_path).lower()
+            return any(kw in model_basename for kw in TURBO_KEYWORDS)
+
+        def _rename_extract_output(base_filename, track_name, src_upload_name, suffix=""):
+            """Rename the generated WAV to {src_stem}-{track}{suffix}.wav for extract tasks"""
+            wav_files = list(GENERATION_DIR.glob(f"{base_filename}*.wav"))
+            if not wav_files:
+                wav_files = sorted(GENERATION_DIR.glob("*.wav"), key=os.path.getmtime)
+            if wav_files:
+                src_stem = Path(secure_filename(src_upload_name)).stem
+                new_name = f"{src_stem}-{track_name}{suffix}.wav"
+                new_path = GENERATION_DIR / new_name
+                wav_files[-1].replace(new_path)
+                return new_path
+            return None
+
         @self.app.route('/generate', methods=['POST'])            
         def generate():            
             # Cleanup previous generation files first
             self._cleanup_generation_files()
             
             form_data = request.form.to_dict()            
-            use_llm = form_data.pop('enhance_via_llm', 'false').lower() == 'true'            
+            use_llm = form_data.pop('enhance_via_llm', 'false').lower() == 'true'
+            src_upload_name = form_data.get('_src_original_name', '')
             src_audio_path = ref_audio_path = None            
             if 'src_audio' in request.files and request.files['src_audio'].filename:            
                 file = request.files['src_audio']            
-                filename = secure_filename(file.filename)            
+                filename = secure_filename(file.filename)
+                src_upload_name = filename
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")            
                 base_filename = f"musicgen_{timestamp}"            
                 src_audio_path = GENERATION_DIR / f"src_{base_filename}_{uuid.uuid4().hex}_{filename}"            
@@ -263,14 +288,33 @@ class MusicGenApp:
             # Override inference steps            
             selected_model = form_data.get("synth_model")            
             if selected_model in MODEL_STEPS:            
-                json_payload["inference_steps"] = MODEL_STEPS[selected_model]            
+                json_payload["inference_steps"] = MODEL_STEPS[selected_model]
+            # Validate extract task
+            is_extract = json_payload.get("task_type") == "extract"
+            if is_extract:
+                track_val = json_payload.get("track", "").strip()
+                if not track_val:
+                    return jsonify({
+                        "status": "error",
+                        "message": "Track selection is required for extract task."
+                    }), 400
+                if not src_audio_path:
+                    return jsonify({
+                        "status": "error",
+                        "message": "Source audio is required for extract task."
+                    }), 400
+                if _is_turbo_model(selected_model):
+                    return jsonify({
+                        "status": "error",
+                        "message": "Turbo models are not supported for extract task. Please select a Base or SFT model."
+                    }), 400
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")            
             base_filename = f"musicgen_{timestamp}"            
             base_json_path = GENERATION_DIR / f"{base_filename}.json"            
             with open(base_json_path, 'w') as f:            
-                json.dump(json_payload, f, indent=4)            
-            # LLM enhancement (if requested)            
-            if use_llm:            
+                json.dump(json_payload, f, indent=4)
+            # LLM enhancement (if requested) — skipped for extract
+            if use_llm and not is_extract:            
                 cmd = [str(BIN_DIR / "ace-lm"), "--models", str(MODELS_DIR), "--request", str(base_json_path)]            
                 try:            
                     logger.info(f"Running LLM enhancement: {' '.join(cmd)}")            
@@ -318,7 +362,18 @@ class MusicGenApp:
             cmd = [str(BIN_DIR / "ace-synth"), "--models", str(MODELS_DIR), "--request", str(base_json_path)] + extra_args            
             try:            
                 logger.info(f"Running synthesis: {' '.join(cmd)}")            
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)            
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                # Handle extract output renaming
+                if is_extract and src_upload_name:
+                    renamed = _rename_extract_output(base_filename, json_payload.get("track", ""), src_upload_name)
+                    if renamed:
+                        latest_wav = renamed
+                        return jsonify({
+                            "status": "success",
+                            "base_filename": base_filename,
+                            "wav_url": f"/download/file?path={latest_wav.name}",
+                            "download_url": f"/download/all?base={base_filename}"
+                        })
                 wav_files = list(GENERATION_DIR.glob(f"{base_filename}*.wav"))            
                 if not wav_files:            
                     wav_files = sorted(GENERATION_DIR.glob("*.wav"), key=os.path.getmtime)            
@@ -363,21 +418,39 @@ class MusicGenApp:
                 "specializing in song generation.\n\n"
                 f"{guide_content}\n\n"
                 "## CRITICAL INSTRUCTION FOR AUDIO SYNTHESIS\n"
+                "EVERY LINE outside of brackets WILL BE SUNG AS LYRICS. There is no narration, "
+                "description, or stage direction between tags — only words that will be vocalized.\n\n"
                 "Never use parentheses () for musical or production descriptions, as the audio engine "
                 "will accidentally speak or sing them as literal lyrics. All structure tags, instrumental "
                 "breaks, and musical cues MUST be delimited strictly with brackets []. If a section has no "
-                "vocals, use specific tags like [Intro Instrumental], [Guitar Solo], [Musical Interlude], "
-                "or [Outro Instrumental]. Do not include descriptive words outside of brackets.\n"
-                "WRONG: [Intro] Heavy guitar swells rise, building tension\n"
-                "RIGHT: [Intro Instrumental]\n"
+                "vocals, use a single bracketed tag with no lines following it "
+                "(e.g. [Intro Instrumental], [Guitar Solo], [Musical Interlude], [Outro Instrumental], "
+                "[Intro - Industrial Atmosphere]).\n"
+                "If a section has vocals, use the [Tag - modifier] pattern to keep style cues inside "
+                "the brackets (e.g. [Outro -spoken words, fading out], [Chorus -anthemic], "
+                "[Verse 1 -building intensity]). The lines after the tag must be actual singable "
+                "lyrics — not production descriptions.\n\n"
+                "WRONG: [Outro]\n"
+                "       spoken words, fading out  ← this gets sung as lyrics!\n"
+                "RIGHT: [Outro -spoken words, fading out]\n"
+                "       Actual lyric lines here\n"
+                "WRONG: [Intro - Industrial Atmosphere]\n"
+                "       Synth drones, mechanical pulses  ← these get sung!\n"
+                "RIGHT: [Intro - Industrial Atmosphere]\n"
+                "       (no lines after — purely instrumental section)\n"
                 "WRONG: [Verse 1] Guitars growl, drums enter with driving force\n"
-                "RIGHT: [Verse 1]\n"
-                "       First line of actual lyrics here\n"
-                "       Second line of lyrics\n\n"
+                "WRONG: [Verse 1 -thundering drums, distorted guitars]\n"
+                "       Rumbling bassline sets the foundation  ← this gets sung!\n"
+                "       Guitar riffs cut through like lightning  ← this gets sung!\n"
+                "RIGHT: [Verse 1 -thundering drums, distorted guitars]\n"
+                "       We are the storm that breaks the night\n"
+                "       Rising up with all our might\n\n"
                 "## Your Task\n"
                 "Analyze and enhance the user's song parameters. Return ONLY valid JSON — no explanations, "
                 "no markdown, no code fences.\n\n"
                 "## Lyrics Requirements (CRITICAL)\n"
+                "- If the user's existing lyrics are '[instrumental]' or the song is instrumental, "
+                "keep it instrumental — do NOT add vocal sections or sung lyrics.\n"
                 "- Lyrics MUST include proper song structure tags: [Intro], [Verse 1], [Verse 2], [Chorus], "
                 "[Bridge], [Guitar Solo], [Keyboard Interlude], [Outro Instrumental], etc.\n"
                 "- Use brackets [] for ALL structural and musical cues. Never use parentheses () for these.\n"
@@ -398,7 +471,7 @@ class MusicGenApp:
                 "lyrics should contain the full structured lyrics with bracketed tags. "
                 "Other fields (include all as separate JSON keys, do not omit): bpm, duration, keyscale, "
                 "timesignature, vocal_language, lm_temperature, lm_cfg_scale, lm_top_p, lm_top_k, seed, "
-                "shift, audio_codes"
+                "shift. audio_codes should be left empty (it is for reference audio file codes, not style text)."
             )
 
             user_prompt = (
@@ -461,7 +534,8 @@ class MusicGenApp:
             
             form_data = request.form.to_dict()            
             use_llm = form_data.pop('enhance_via_llm', 'false').lower() == 'true'            
-            batch_size = safe_int(form_data.get('batch_size', 1), 1)            
+            batch_size = safe_int(form_data.get('batch_size', 1), 1)
+            src_upload_name = form_data.get('_src_original_name', '')
             src_audio_path = ref_audio_path = None            
             
             # Generate a unique base name for this batch run
@@ -471,7 +545,8 @@ class MusicGenApp:
             # Save reference and source audio with the batch base filename
             if 'src_audio' in request.files and request.files['src_audio'].filename:            
                 file = request.files['src_audio']            
-                filename = secure_filename(file.filename)            
+                filename = secure_filename(file.filename)
+                src_upload_name = filename
                 src_audio_path = GENERATION_DIR / f"src_{batch_base_filename}_{uuid.uuid4().hex}_{filename}"            
                 file.save(src_audio_path)            
             
@@ -498,13 +573,32 @@ class MusicGenApp:
             # Override inference steps            
             selected_model = form_data.get("synth_model")            
             if selected_model in MODEL_STEPS:            
-                json_payload["inference_steps"] = MODEL_STEPS[selected_model]            
+                json_payload["inference_steps"] = MODEL_STEPS[selected_model]
+            # Validate extract task
+            is_extract = json_payload.get("task_type") == "extract"
+            if is_extract:
+                track_val = json_payload.get("track", "").strip()
+                if not track_val:
+                    return jsonify({
+                        "status": "error",
+                        "message": "Track selection is required for extract task."
+                    }), 400
+                if not src_audio_path:
+                    return jsonify({
+                        "status": "error",
+                        "message": "Source audio is required for extract task."
+                    }), 400
+                if _is_turbo_model(selected_model):
+                    return jsonify({
+                        "status": "error",
+                        "message": "Turbo models are not supported for extract task. Please select a Base or SFT model."
+                    }), 400
             # Generate batch JSON file
             batch_json_path = GENERATION_DIR / f"{batch_base_filename}.json"            
             with open(batch_json_path, 'w') as f:            
                 json.dump(json_payload, f, indent=4)            
-            # LLM enhancement for batch (if requested)            
-            if use_llm:            
+            # LLM enhancement for batch (if requested) — skipped for extract
+            if use_llm and not is_extract:            
                 cmd = [str(BIN_DIR / "ace-lm"), "--models", str(MODELS_DIR), "--request", str(batch_json_path)]            
                 try:            
                     logger.info(f"Running LLM enhancement for batch: {' '.join(cmd)}")            
@@ -564,7 +658,18 @@ class MusicGenApp:
                 cmd = [str(BIN_DIR / "ace-synth"), "--models", str(MODELS_DIR), "--request", str(batch_item_json_path)] + extra_args            
                 try:            
                     logger.info(f"Running synthesis for batch item {i+1}: {' '.join(cmd)}")            
-                    result = subprocess.run(cmd, capture_output=True, text=True, check=True)            
+                    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                    # Handle extract output renaming for batch items
+                    if is_extract and src_upload_name:
+                        renamed = _rename_extract_output(batch_item_filename, json_payload.get("track", ""), src_upload_name, f"_{i+1}")
+                        if renamed:
+                            batch_results.append({
+                                "status": "success",
+                                "base_filename": batch_item_filename,
+                                "wav_url": f"/download/file?path={renamed.name}",
+                                "download_url": f"/download/all?base={batch_item_filename}"
+                            })
+                            continue
                     wav_files = list(GENERATION_DIR.glob(f"{batch_item_filename}*.wav"))            
                     if not wav_files:            
                         wav_files = sorted(GENERATION_DIR.glob("*.wav"), key=os.path.getmtime)            
@@ -604,7 +709,12 @@ class MusicGenApp:
                     zf.write(f, f.name)            
                 # Add all WAV files
                 for f in GENERATION_DIR.glob(f"{batch_base_filename}_*.wav"):            
-                    zf.write(f, f.name)            
+                    zf.write(f, f.name)
+                # For extract tasks, also include renamed wav files
+                if is_extract:
+                    for f in GENERATION_DIR.glob("*.wav"):
+                        if not f.name.startswith("src_") and not f.name.startswith("ref_") and not f.name.startswith("musicgen_"):
+                            zf.write(f, f.name)
                 # Add reference audio files if they exist
                 if ref_audio_path and ref_audio_path.exists():
                     zf.write(ref_audio_path, ref_audio_path.name)            
@@ -636,8 +746,15 @@ class MusicGenApp:
                     f = GENERATION_DIR / pattern            
                     if f.exists():            
                         zf.write(f, f.name)            
-                for f in GENERATION_DIR.glob(f"{base_name}*.wav"):            
-                    zf.write(f, f.name)            
+                wavs = list(GENERATION_DIR.glob(f"{base_name}*.wav"))
+                if not wavs:
+                    # For extract tasks, the wav is renamed — include all non-prefixed wavs
+                    for f in GENERATION_DIR.glob("*.wav"):
+                        if not f.name.startswith("src_") and not f.name.startswith("ref_") and not f.name.startswith("musicgen_"):
+                            zf.write(f, f.name)
+                else:
+                    for f in wavs:
+                        zf.write(f, f.name)
                 # FIXED: Only include files from current generation using base_name prefix            
                 for f in GENERATION_DIR.glob(f"src_{base_name}_*"):            
                     zf.write(f, f.name)            
@@ -673,7 +790,12 @@ class MusicGenApp:
         try:
             deleted = []
             for f in GENERATION_DIR.iterdir():
-                if f.is_file() and (f.name.startswith("musicgen_") or f.name.startswith("ref_") or f.name.startswith("src_")):
+                if f.is_file() and (
+                    f.name.startswith("musicgen_")
+                    or f.name.startswith("ref_")
+                    or f.name.startswith("src_")
+                    or (f.suffix == ".wav" and not f.name.startswith(("musicgen_", "src_", "ref_")))
+                ):
                     f.unlink()
                     deleted.append(f.name)
             if deleted:

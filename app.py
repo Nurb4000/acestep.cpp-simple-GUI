@@ -97,6 +97,64 @@ def get_adapter_files():
         logger.warning(f"Could not list adapters: {e}")
         return []
 
+
+def save_uploaded_audio(file_key, base_filename):
+    """Save uploaded audio file and return the path. Returns (Path, str) or (None, '')."""
+    if file_key not in request.files or not request.files[file_key].filename:
+        return None, ''
+    file = request.files[file_key]
+    filename = secure_filename(file.filename)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    prefix = "src" if file_key == "src_audio" else "ref"
+    file_path = GENERATION_DIR / f"{prefix}_{base_filename}_{uuid.uuid4().hex}_{filename}"
+    file.save(file_path)
+    return file_path, filename
+
+
+def build_json_payload(form_data):
+    """Parse form data into json_payload with proper types and model overrides."""
+    json_payload = {**DEFAULTS}
+    for key, val in form_data.items():
+        if key == "keyscale":
+            json_payload[key] = str(val)
+        elif key in INT_FIELDS:
+            json_payload[key] = safe_int(val, DEFAULTS.get(key, 0))
+        elif key in FLOAT_FIELDS:
+            json_payload[key] = safe_float(val, DEFAULTS.get(key, 0.0))
+        else:
+            json_payload[key] = val
+    # Strip model paths
+    for mkey in ("synth_model", "lm_model"):
+        if json_payload.get(mkey):
+            json_payload[mkey] = os.path.basename(json_payload[mkey])
+    # Override inference steps based on selected model
+    selected_model = form_data.get("synth_model")
+    if selected_model in MODEL_STEPS:
+        json_payload["inference_steps"] = MODEL_STEPS[selected_model]
+    return json_payload
+
+
+def build_synthesis_args(json_payload, src_audio_path, ref_audio_path, form_data):
+    """Build extra command-line arguments for ace-synth."""
+    extra_args = []
+    if src_audio_path:
+        extra_args += ["--src-audio", str(src_audio_path)]
+    if ref_audio_path:
+        extra_args += ["--ref-audio", str(ref_audio_path)]
+    if form_data.get('clamp_fp16') == 'on':
+        extra_args.append("--clamp-fp16")
+    if form_data.get('no_fa') == 'on':
+        extra_args.append("--no-fa")
+    extra_args += ["--vae-chunk", "512", "--vae-overlap", "128"]
+    # ADAPTER SUPPORT
+    adapter_file = json_payload.get("adapter")
+    if adapter_file and adapter_file.strip():
+        extra_args += ["--adapters", str(ADAPTERS_DIR)]
+        scale = json_payload.get("adapter_scale", 1.0)
+        if scale != 1.0:
+            extra_args += ["--adapter-scale", str(scale)]
+    return extra_args
+
 class MusicGenApp:            
     def __init__(self):            
         self.app = Flask(__name__, template_folder='templates')            
@@ -122,42 +180,17 @@ class MusicGenApp:
             # Cleanup previous generation files first
             self._cleanup_generation_files()
             
-            form_data = request.form.to_dict()            
-            src_audio_path = ref_audio_path = None            
-            if 'src_audio' in request.files and request.files['src_audio'].filename:            
-                file = request.files['src_audio']            
-                filename = secure_filename(file.filename)            
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")            
-                base_filename = f"musicgen_{timestamp}"            
-                src_audio_path = GENERATION_DIR / f"src_{base_filename}_{uuid.uuid4().hex}_{filename}"            
-                file.save(src_audio_path)            
-            if 'ref_audio' in request.files and request.files['ref_audio'].filename:            
-                file = request.files['ref_audio']            
-                filename = secure_filename(file.filename)            
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")            
-                base_filename = f"musicgen_{timestamp}"            
-                ref_audio_path = GENERATION_DIR / f"ref_{base_filename}_{uuid.uuid4().hex}_{filename}"            
-                file.save(ref_audio_path)            
-            json_payload = {**DEFAULTS}            
-            for key, val in form_data.items():            
-                if key == "keyscale":            
-                    json_payload[key] = str(val)            
-                elif key in INT_FIELDS:            
-                    json_payload[key] = safe_int(val, DEFAULTS.get(key, 0))            
-                elif key in FLOAT_FIELDS:            
-                    json_payload[key] = safe_float(val, DEFAULTS.get(key, 0.0))            
-                else:            
-                    json_payload[key] = val            
-            # Strip model paths            
-            for mkey in ("synth_model", "lm_model"):            
-                if json_payload.get(mkey):            
-                    json_payload[mkey] = os.path.basename(json_payload[mkey])            
-            # Override inference steps            
-            selected_model = form_data.get("synth_model")            
-            if selected_model in MODEL_STEPS:            
-                json_payload["inference_steps"] = MODEL_STEPS[selected_model]            
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")            
-            base_filename = f"musicgen_{timestamp}"            
+            form_data = request.form.to_dict()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            base_filename = f"musicgen_{timestamp}"
+            
+            # Save uploaded audio files
+            src_audio_path, _ = save_uploaded_audio("src_audio", base_filename)
+            ref_audio_path, _ = save_uploaded_audio("ref_audio", base_filename)
+            
+            # Build json payload from form data
+            json_payload = build_json_payload(form_data)
+            
             # Generate JSON string for download            
             json_str = json.dumps(json_payload, indent=4)            
             # Return JSON response with filename for frontend to handle download            
@@ -255,40 +288,19 @@ class MusicGenApp:
             form_data = request.form.to_dict()            
             use_llm = form_data.pop('enhance_via_llm', 'false').lower() == 'true'
             src_upload_name = form_data.get('_src_original_name', '')
-            src_audio_path = ref_audio_path = None            
-            if 'src_audio' in request.files and request.files['src_audio'].filename:            
-                file = request.files['src_audio']            
-                filename = secure_filename(file.filename)
-                src_upload_name = filename
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")            
-                base_filename = f"musicgen_{timestamp}"            
-                src_audio_path = GENERATION_DIR / f"src_{base_filename}_{uuid.uuid4().hex}_{filename}"            
-                file.save(src_audio_path)            
-            if 'ref_audio' in request.files and request.files['ref_audio'].filename:            
-                file = request.files['ref_audio']            
-                filename = secure_filename(file.filename)            
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")            
-                base_filename = f"musicgen_{timestamp}"            
-                ref_audio_path = GENERATION_DIR / f"ref_{base_filename}_{uuid.uuid4().hex}_{filename}"            
-                file.save(ref_audio_path)            
-            json_payload = {**DEFAULTS}            
-            for key, val in form_data.items():            
-                if key == "keyscale":            
-                    json_payload[key] = str(val)            
-                elif key in INT_FIELDS:            
-                    json_payload[key] = safe_int(val, DEFAULTS.get(key, 0))            
-                elif key in FLOAT_FIELDS:            
-                    json_payload[key] = safe_float(val, DEFAULTS.get(key, 0.0))            
-                else:            
-                    json_payload[key] = val            
-            # Strip model paths            
-            for mkey in ("synth_model", "lm_model"):            
-                if json_payload.get(mkey):            
-                    json_payload[mkey] = os.path.basename(json_payload[mkey])            
-            # Override inference steps            
-            selected_model = form_data.get("synth_model")            
-            if selected_model in MODEL_STEPS:            
-                json_payload["inference_steps"] = MODEL_STEPS[selected_model]
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            base_filename = f"musicgen_{timestamp}"
+            
+            # Save uploaded audio files
+            src_audio_path, src_upload_name = save_uploaded_audio("src_audio", base_filename)
+            if not src_upload_name:
+                src_upload_name = form_data.get('_src_original_name', '')
+            ref_audio_path, _ = save_uploaded_audio("ref_audio", base_filename)
+            
+            # Build json payload from form data
+            json_payload = build_json_payload(form_data)
+            
             # Validate extract task
             is_extract = json_payload.get("task_type") == "extract"
             if is_extract:
@@ -303,13 +315,12 @@ class MusicGenApp:
                         "status": "error",
                         "message": "Source audio is required for extract task."
                     }), 400
-                if _is_turbo_model(selected_model):
+                if _is_turbo_model(json_payload.get("synth_model", "")):
                     return jsonify({
                         "status": "error",
                         "message": "Turbo models are not supported for extract task. Please select a Base or SFT model."
                     }), 400
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")            
-            base_filename = f"musicgen_{timestamp}"            
+            
             base_json_path = GENERATION_DIR / f"{base_filename}.json"            
             with open(base_json_path, 'w') as f:            
                 json.dump(json_payload, f, indent=4)
@@ -340,25 +351,8 @@ class MusicGenApp:
                         "message": "LLM Generation Failed",            
                         "details": f"Exit code: {e.returncode}\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}"            
                     })            
-            # Synthesis            
-            extra_args = []            
-            if src_audio_path:            
-                extra_args += ["--src-audio", str(src_audio_path)]            
-            if ref_audio_path:            
-                extra_args += ["--ref-audio", str(ref_audio_path)]            
-            if form_data.get('clamp_fp16') == 'on':            
-                extra_args.append("--clamp-fp16")            
-            if form_data.get('no_fa') == 'on':
-                extra_args.append("--no-fa")
-            extra_args += ["--vae-chunk", "512", "--vae-overlap", "128"]
-            # ADAPTER SUPPORT: Add --adapters directory only (not full file path)
-            adapter_file = json_payload.get("adapter")
-            if adapter_file and adapter_file.strip():
-                extra_args += ["--adapters", str(ADAPTERS_DIR)]
-                # Add scale only if non-default
-                scale = json_payload.get("adapter_scale", 1.0)
-                if scale != 1.0:
-                    extra_args += ["--adapter-scale", str(scale)]
+            # Synthesis
+            extra_args = build_synthesis_args(json_payload, src_audio_path, ref_audio_path, form_data)
             cmd = [str(BIN_DIR / "ace-synth"), "--models", str(MODELS_DIR), "--request", str(base_json_path)] + extra_args            
             try:            
                 logger.info(f"Running synthesis: {' '.join(cmd)}")            
@@ -463,11 +457,34 @@ class MusicGenApp:
                 "- Each lyric line should be 6-10 syllables and metered rhythmically so the audio synthesis "
                 "aligns properly.\n"
                 "- Use blank lines between sections.\n\n"
+                "## Caption-Lyrics Consistency (IMPORTANT)\n"
+                "Models are not good at resolving conflicts. Ensure consistency between caption and lyrics:\n"
+                "- Instruments in Caption ↔ Instrumental section tags in Lyrics\n"
+                "- Emotion in Caption ↔ Energy tags in Lyrics\n"
+                "- Vocal description in Caption ↔ Vocal control tags in Lyrics\n\n"
+                "CONFLICT RESOLUTION:\n"
+                "- If caption and lyrics contradict, the model gets confused and quality decreases.\n"
+                "- Example of CONFLICT: Caption says 'violin solo, classical' but lyrics have '[Guitar Solo]'\n"
+                "- Example of CONSISTENT: Caption says 'violin solo, classical' and lyrics have '[Violin Solo]'\n"
+                "- For mixed styles: use temporal evolution (e.g., 'Start with soft strings, middle becomes metal')\n"
+                "- Avoid stacking too many tags in brackets — keep concise, one modifier per tag preferred.\n\n"
+                "## Vocal and Energy Tags Reference\n"
+                "Vocal style tags: [raspy vocal], [whispered], [falsetto], [powerful belting], "
+                "[spoken word], [harmonies], [call and response], [ad-lib]\n"
+                "Energy tags: [high energy], [low energy], [building energy], [explosive], "
+                "[melancholic], [euphoric], [dreamy], [aggressive]\n\n"
+                "## Avoiding AI-Flavored Lyrics\n"
+                "Do NOT use:\n"
+                "- Adjective stacking ('neon skies, electric hearts, endless dreams') — use concrete imagery\n"
+                "- Inconsistent rhyme patterns — maintain natural flow\n"
+                "- Blurred section boundaries — lyrics should not 'flow' across structure tags\n"
+                "- Lines too long to sing — keep 6-10 syllables\n"
+                "- Mixed metaphors — stick to one core metaphor per song\n\n"
                 "## Output JSON fields (include only as relevant)\n"
                 "caption should start with 2-3 song title suggestions wrapped in curly braces like "
                 "{Title Idea One} {Another Title Idea} {Third Idea}, then a dense, descriptive paragraph "
-                "detailing the genre, instruments, production style, sub-genres, vocals, and mood "
-                "(reference BPM and key-scale in the caption text as well). "
+                "detailing the genre, instruments, production style, sub-genres, vocals, and mood. "
+                "Do NOT include BPM, key, or tempo in caption — use dedicated parameters instead. "
                 "lyrics should contain the full structured lyrics with bracketed tags. "
                 "Other fields (include all as separate JSON keys, do not omit): bpm, duration, keyscale, "
                 "timesignature, vocal_language, lm_temperature, lm_cfg_scale, lm_top_p, lm_top_k, seed, "
@@ -478,8 +495,10 @@ class MusicGenApp:
                 "Current song parameters:\n"
                 f"{json.dumps(current_params, indent=2)}\n\n"
                 "Enhance these parameters following the songwriting guide strictly. "
-                "Make sure lyrics have proper section tags ([Verse], [Chorus], etc.) and that "
+                "Ensure lyrics have proper section tags ([Verse], [Chorus], etc.) and that "
                 "the amount of lyrical content fits the specified duration. "
+                "Check that caption and lyrics are consistent (instruments, emotion, vocal style match). "
+                "Avoid AI-flavored lyrics (adjective stacking, mixed metaphors, inconsistent rhymes). "
                 "Return ONLY valid JSON."
             )
 
@@ -535,45 +554,20 @@ class MusicGenApp:
             form_data = request.form.to_dict()            
             use_llm = form_data.pop('enhance_via_llm', 'false').lower() == 'true'            
             batch_size = safe_int(form_data.get('batch_size', 1), 1)
-            src_upload_name = form_data.get('_src_original_name', '')
-            src_audio_path = ref_audio_path = None            
             
             # Generate a unique base name for this batch run
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             batch_base_filename = f"musicgen_batch_{timestamp}"
             
-            # Save reference and source audio with the batch base filename
-            if 'src_audio' in request.files and request.files['src_audio'].filename:            
-                file = request.files['src_audio']            
-                filename = secure_filename(file.filename)
-                src_upload_name = filename
-                src_audio_path = GENERATION_DIR / f"src_{batch_base_filename}_{uuid.uuid4().hex}_{filename}"            
-                file.save(src_audio_path)            
+            # Save uploaded audio files
+            src_audio_path, src_upload_name = save_uploaded_audio("src_audio", batch_base_filename)
+            if not src_upload_name:
+                src_upload_name = form_data.get('_src_original_name', '')
+            ref_audio_path, _ = save_uploaded_audio("ref_audio", batch_base_filename)
             
-            if 'ref_audio' in request.files and request.files['ref_audio'].filename:            
-                file = request.files['ref_audio']            
-                filename = secure_filename(file.filename)            
-                ref_audio_path = GENERATION_DIR / f"ref_{batch_base_filename}_{uuid.uuid4().hex}_{filename}"            
-                file.save(ref_audio_path)            
+            # Build json payload from form data
+            json_payload = build_json_payload(form_data)
             
-            json_payload = {**DEFAULTS}            
-            for key, val in form_data.items():            
-                if key == "keyscale":            
-                    json_payload[key] = str(val)            
-                elif key in INT_FIELDS:            
-                    json_payload[key] = safe_int(val, DEFAULTS.get(key, 0))            
-                elif key in FLOAT_FIELDS:            
-                    json_payload[key] = safe_float(val, DEFAULTS.get(key, 0.0))            
-                else:            
-                    json_payload[key] = val            
-            # Strip model paths            
-            for mkey in ("synth_model", "lm_model"):            
-                if json_payload.get(mkey):            
-                    json_payload[mkey] = os.path.basename(json_payload[mkey])            
-            # Override inference steps            
-            selected_model = form_data.get("synth_model")            
-            if selected_model in MODEL_STEPS:            
-                json_payload["inference_steps"] = MODEL_STEPS[selected_model]
             # Validate extract task
             is_extract = json_payload.get("task_type") == "extract"
             if is_extract:
@@ -588,11 +582,12 @@ class MusicGenApp:
                         "status": "error",
                         "message": "Source audio is required for extract task."
                     }), 400
-                if _is_turbo_model(selected_model):
+                if _is_turbo_model(json_payload.get("synth_model", "")):
                     return jsonify({
                         "status": "error",
                         "message": "Turbo models are not supported for extract task. Please select a Base or SFT model."
                     }), 400
+            
             # Generate batch JSON file
             batch_json_path = GENERATION_DIR / f"{batch_base_filename}.json"            
             with open(batch_json_path, 'w') as f:            
@@ -636,25 +631,8 @@ class MusicGenApp:
                 batch_item_json_path = GENERATION_DIR / f"{batch_item_filename}.json"            
                 with open(batch_item_json_path, 'w') as f:            
                     json.dump(json_payload, f, indent=4)            
-                # Synthesis            
-                extra_args = []            
-                if src_audio_path:            
-                    extra_args += ["--src-audio", str(src_audio_path)]            
-                if ref_audio_path:            
-                    extra_args += ["--ref-audio", str(ref_audio_path)]            
-                if form_data.get('clamp_fp16') == 'on':            
-                    extra_args.append("--clamp-fp16")            
-                if form_data.get('no_fa') == 'on':
-                    extra_args.append("--no-fa")
-                extra_args += ["--vae-chunk", "512", "--vae-overlap", "128"]
-                # ADAPTER SUPPORT: Add --adapters directory only (not full file path)
-                adapter_file = json_payload.get("adapter")
-                if adapter_file and adapter_file.strip():
-                    extra_args += ["--adapters", str(ADAPTERS_DIR)]
-                    # Add scale only if non-default
-                    scale = json_payload.get("adapter_scale", 1.0)
-                    if scale != 1.0:
-                        extra_args += ["--adapter-scale", str(scale)]
+                # Synthesis
+                extra_args = build_synthesis_args(json_payload, src_audio_path, ref_audio_path, form_data)
                 cmd = [str(BIN_DIR / "ace-synth"), "--models", str(MODELS_DIR), "--request", str(batch_item_json_path)] + extra_args            
                 try:            
                     logger.info(f"Running synthesis for batch item {i+1}: {' '.join(cmd)}")            

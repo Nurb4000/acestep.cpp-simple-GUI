@@ -155,6 +155,100 @@ def build_synthesis_args(json_payload, src_audio_path, ref_audio_path, form_data
             extra_args += ["--adapter-scale", str(scale)]
     return extra_args
 
+
+def extract_json_from_llm_response(content: str) -> dict:
+    """
+    Extract JSON from LLM response with multiple fallback strategies.
+    
+    Tries various patterns to handle different LLM response formats:
+    - Direct JSON parsing
+    - Markdown code fences (```json ... ```)
+    - Plain code fences (``` ... ```)
+    - JSON wrapped in other text
+    - Trailing commas before closing braces/brackets
+    """
+    if not content or not content.strip():
+        raise ValueError("Empty LLM response content")
+    
+    content = content.strip()
+    logger.info(f"Attempting to extract JSON from LLM response ({len(content)} chars)")
+    
+    # Strategy 1: Direct JSON parse
+    try:
+        result = json.loads(content)
+        logger.info("Successfully parsed JSON directly from LLM response")
+        return result
+    except json.JSONDecodeError as e:
+        logger.info(f"Direct JSON parse failed: {e}")
+    
+    # Strategy 2: Try to find JSON in markdown code fences
+    patterns = [
+        (r'```json\s*\n([\s\S]*?)\n```', "markdown code fence with json tag"),
+        (r'```\s*\n([\s\S]*?)\n```', "plain code fence"),
+        (r'```json([\s\S]*?)```', "inline json code fence"),
+        (r'```([\s\S]*?)```', "inline code fence"),
+        (r'\{[\s\S]*\}', "curly brace block"),
+        (r'\[[\s\S]*\]', "square bracket block"),
+    ]
+    
+    for pattern, description in patterns:
+        matches = re.findall(pattern, content, re.DOTALL)
+        for match in matches:
+            candidate = match.strip()
+            if not candidate:
+                continue
+            try:
+                logger.info(f"Successfully extracted JSON using {description} pattern")
+                return json.loads(candidate)
+            except json.JSONDecodeError:
+                # Try to fix common JSON issues
+                # Remove trailing commas before } or ]
+                fixed = re.sub(r',\s*([}\]])', r'\1', candidate)
+                try:
+                    logger.info(f"Successfully extracted JSON using {description} pattern (after fixing trailing commas)")
+                    return json.loads(fixed)
+                except json.JSONDecodeError:
+                    continue
+    
+    # Strategy 3: Try to extract JSON by finding the first { or [ and last } or ]
+    first_brace = content.find('{')
+    first_bracket = content.find('[')
+    
+    if first_brace != -1:
+        last_brace = content.rfind('}')
+        if last_brace > first_brace:
+            candidate = content[first_brace:last_brace + 1]
+            try:
+                logger.info("Successfully extracted JSON using curly brace extraction")
+                return json.loads(candidate)
+            except json.JSONDecodeError:
+                # Try fixing trailing commas
+                fixed = re.sub(r',\s*}', '}', candidate)
+                try:
+                    logger.info("Successfully extracted JSON using curly brace extraction (after fixing trailing commas)")
+                    return json.loads(fixed)
+                except json.JSONDecodeError:
+                    pass
+    
+    if first_bracket != -1:
+        last_bracket = content.rfind(']')
+        if last_bracket > first_bracket:
+            candidate = content[first_bracket:last_bracket + 1]
+            try:
+                logger.info("Successfully extracted JSON using square bracket extraction")
+                return json.loads(candidate)
+            except json.JSONDecodeError:
+                # Try fixing trailing commas
+                fixed = re.sub(r',\s*]', ']', candidate)
+                try:
+                    logger.info("Successfully extracted JSON using square bracket extraction (after fixing trailing commas)")
+                    return json.loads(fixed)
+                except json.JSONDecodeError:
+                    pass
+    
+    raise ValueError("Could not parse JSON from LLM response")
+
+
 class MusicGenApp:            
     def __init__(self):            
         self.app = Flask(__name__, template_folder='templates')            
@@ -519,15 +613,10 @@ class MusicGenApp:
                 resp.raise_for_status()
                 result = resp.json()
                 content = result["choices"][0]["message"]["content"]
+                logger.info(f"Raw LLM response content length: {len(content)} chars")
+                logger.info(f"Raw LLM response content: {content[:2000]}...")
 
-                try:
-                    enhanced = json.loads(content)
-                except json.JSONDecodeError:
-                    json_match = re.search(r'```(?:json)?\s*\n?([\s\S]*?)```', content)
-                    if json_match:
-                        enhanced = json.loads(json_match.group(1).strip())
-                    else:
-                        raise ValueError("Could not parse JSON from LLM response")
+                enhanced = extract_json_from_llm_response(content)
 
                 logger.info("External LLM enhancement successful.")
                 return jsonify({

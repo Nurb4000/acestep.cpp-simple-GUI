@@ -606,9 +606,9 @@ class MusicGenApp:
                             {"role": "user", "content": user_prompt}
                         ],
                         "temperature": 0.7,
-                        "max_tokens": 4096
+                        "max_tokens": 8192
                     },
-                    timeout=300
+                    timeout=600
                 )
                 resp.raise_for_status()
                 result = resp.json()

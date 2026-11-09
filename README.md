@@ -107,8 +107,6 @@ re-sends the same payload with a new seed, downloads the WAV, and saves `prompt.
 `payload.json`, `output.wav`, and `meta.json` under a per-run folder. Per-server config
 (`host`/`port`/`timeout_seconds`) lives in `config.toml`; runtime `host`/`port` override it.
 
-Backend reference: https://github.com/Nurb4000/acestep.cpp-simple-GUI
-
 ### Pending / Future (relative to the API)
 
 - **`/analyze_llm` via API** - feed reference audio into the LLM and return structured params (analysis today is GUI-only).

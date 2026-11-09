@@ -53,3 +53,66 @@ And once again, obligatory ( always updated for current featureset ) screenshot:
 
 
 
+
+---
+
+## REST API & CodeAssist Tool Integration
+
+Besides the web GUI, this project exposes a JSON API so external clients (e.g. the
+CodeAssist `musicgen` tool) can generate audio programmatically.
+
+### `POST /api/generate`
+
+JSON-driven generation endpoint (the GUI's `/generate` still uses HTML form posts).
+
+**Request body** (`application/json`):
+
+```json
+{
+  "prompt": "an upbeat indie-pop track about summer roads",
+  "params": {
+    "task_type": "text2music",
+    "caption": "{Title A} {Title B} Dense style description...",
+    "lyrics": "[Verse 1]\n...",
+    "bpm": 118, "duration": 150, "keyscale": "C Major",
+    "timesignature": "4/4", "vocal_language": "en", "seed": 0
+  },
+  "src_audio": { "filename": "src.wav", "b64": "<base64>" },
+  "ref_audio": { "filename": "ref.wav", "b64": "<base64>" }
+}
+```
+
+- `prompt` - natural-language request (echoed back in the response for the caller's records).
+- `params` - ACE-Step parameters; run through the same validation/coercion as the GUI.
+- `src_audio` / `ref_audio` - optional base64-encoded WAVs, used by cover/lego/extract/complete/repaint via `params.task_type`.
+
+**Response (success):**
+
+```json
+{ "status": "success", "prompt": "...", "json_payload": {...},
+  "wav_url": "/download/file?path=...", "download_url": "/download/all?base=...",
+  "base_filename": "musicgen_20261109_..." }
+```
+
+Failure returns `{ "status": "error", "message": "...", "details": "..." }` with HTTP 500.
+
+The endpoint reuses the existing synthesis flow (`bin/ace-synth`, optional `bin/ace-lm`
+enhancement) and is synchronous - the response is returned once the WAV is ready.
+
+### CodeAssist `musicgen` tool
+
+A stock CodeAssist tool that calls this endpoint. It takes a `prompt` + structured
+`payload` (from the CodeAssist `music` skill), optional source/reference WAV paths, and an
+optional `batch_size`. For each batch item it re-sends the same payload with a new seed,
+downloads the WAV, and saves `prompt.txt`, `payload.json`, `output.wav`, and `meta.json`
+under `<workspace>/music_generations/<timestamp>/`. Config lives in `[musicgen]`
+(`host`/`port`/`timeout_seconds`) in `config.toml`; runtime `host`/`port` args override it.
+
+Backend reference: https://github.com/Nurb4000/acestep.cpp-simple-GUI
+
+### Pending / Future (relative to the API + tool)
+
+- **`/analyze_llm` via API** - feed reference audio into the LLM and return structured params (analysis today is GUI-only).
+- **`/enhance_external` via API** - route the external-LLM enhancement through the JSON API.
+- **`/generate_batch` via API** - server-side batch; the tool already batches client-side (new seed per item), so this is optional.
+- **`/generate_json` (save/load settings)** - redundant with the tool's saved `payload.json`; low priority.

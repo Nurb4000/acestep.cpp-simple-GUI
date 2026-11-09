@@ -11,6 +11,7 @@ from pathlib import Path
 import zipfile            
 import logging            
 from io import BytesIO
+import base64
 import requests
 
 # --- Configuration & Constants            
@@ -294,6 +295,90 @@ class MusicGenApp:
                 "json_filename": f"{base_filename}.json",            
                 "json_content": json_str  # Pass content for frontend to download            
             })    
+
+        @self.app.route('/api/generate', methods=['POST'])
+        def api_generate():
+            # JSON-driven generation endpoint for external API clients.
+            # Body: {"prompt": str, "params": {...}, "src_audio": {"filename","b64"}?, "ref_audio": {...}?}
+            data = request.get_json(silent=True) or {}
+            prompt = data.get("prompt", "")
+            params = data.get("params", {})
+            if not isinstance(params, dict):
+                return jsonify({"status": "error", "message": "'params' must be a JSON object"}), 400
+
+            self._cleanup_generation_files()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            base_filename = f"musicgen_{timestamp}"
+
+            def decode_audio(field):
+                entry = data.get(field)
+                if not entry or not entry.get("b64"):
+                    return None, ''
+                raw = base64.b64decode(entry["b64"])
+                fname = secure_filename(entry.get("filename", field + ".wav")) or (field + ".wav")
+                prefix = "src" if field == "src_audio" else "ref"
+                out = GENERATION_DIR / (prefix + "_" + base_filename + "_" + uuid.uuid4().hex + "_" + fname)
+                out.write_bytes(raw)
+                return out, fname
+
+            src_audio_path, src_upload_name = decode_audio("src_audio")
+            ref_audio_path, _ = decode_audio("ref_audio")
+
+            json_payload = build_json_payload(params)
+
+            is_extract = json_payload.get("task_type") == "extract"
+            if is_extract:
+                if not json_payload.get("track", "").strip():
+                    return jsonify({"status": "error", "message": "Track selection is required for extract task."}), 400
+                if not src_audio_path:
+                    return jsonify({"status": "error", "message": "Source audio is required for extract task."}), 400
+                if _is_turbo_model(json_payload.get("synth_model", "")):
+                    return jsonify({"status": "error", "message": "Turbo models are not supported for extract task. Please select a Base or SFT model."}), 400
+
+            base_json_path = GENERATION_DIR / (base_filename + ".json")
+            with open(base_json_path, 'w') as f:
+                json.dump(json_payload, f, indent=4)
+
+            use_llm = str(json_payload.get("enhance_via_llm", "false")).lower() == "true" and not is_extract
+            if use_llm:
+                lm_cmd = [str(BIN_DIR / "ace-lm"), "--models", str(MODELS_DIR), "--request", str(base_json_path)]
+                try:
+                    logger.info("Running LLM enhancement: " + " ".join(lm_cmd))
+                    lm_result = subprocess.run(lm_cmd, capture_output=True, text=True, check=True)
+                    llm_json_path = GENERATION_DIR / (base_filename + "0.json")
+                    if not llm_json_path.exists():
+                        return jsonify({"status": "error", "message": "LLM output file missing.", "details": lm_result.stdout + "\n" + lm_result.stderr})
+                    with open(llm_json_path) as f:
+                        enhanced = json.load(f)
+                    for key, val in enhanced.items():
+                        if key in json_payload:
+                            json_payload[key] = val
+                    with open(base_json_path, 'w') as f:
+                        json.dump(json_payload, f, indent=4)
+                except subprocess.CalledProcessError as e:
+                    return jsonify({"status": "error", "message": "LLM Generation Failed", "details": "Exit code: " + str(e.returncode) + "\nSTDOUT:\n" + e.stdout + "\nSTDERR:\n" + e.stderr})
+
+            extra_args = build_synthesis_args(json_payload, src_audio_path, ref_audio_path, params)
+            synth_cmd = [str(BIN_DIR / "ace-synth"), "--models", str(MODELS_DIR), "--request", str(base_json_path)] + extra_args
+            try:
+                logger.info("Running synthesis: " + " ".join(synth_cmd))
+                result = subprocess.run(synth_cmd, capture_output=True, text=True, check=True)
+                wav_files = list(GENERATION_DIR.glob(base_filename + "*.wav"))
+                if not wav_files:
+                    wav_files = sorted(GENERATION_DIR.glob("*.wav"), key=os.path.getmtime)
+                if wav_files:
+                    latest_wav = wav_files[-1]
+                    return jsonify({
+                        "status": "success",
+                        "prompt": prompt,
+                        "json_payload": json_payload,
+                        "wav_url": "/download/file?path=" + latest_wav.name,
+                        "download_url": "/download/all?base=" + base_filename,
+                        "base_filename": base_filename,
+                    })
+                return jsonify({"status": "error", "message": "No WAV file generated.", "details": "STDOUT:\n" + result.stdout + "\nSTDERR:\n" + result.stderr}), 500
+            except subprocess.CalledProcessError as e:
+                return jsonify({"status": "error", "message": "Synthesis Failed", "details": "Exit code: " + str(e.returncode) + "\nSTDOUT:\n" + e.stdout + "\nSTDERR:\n" + e.stderr}), 500
 
         @self.app.route('/analyze_llm', methods=['POST'])
         def analyze_llm():
@@ -608,7 +693,7 @@ class MusicGenApp:
                         "temperature": 0.7,
                         "max_tokens": 8192
                     },
-                    timeout=600
+                    timeout=6000
                 )
                 resp.raise_for_status()
                 result = resp.json()

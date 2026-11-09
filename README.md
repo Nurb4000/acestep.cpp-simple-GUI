@@ -56,10 +56,10 @@ And once again, obligatory ( always updated for current featureset ) screenshot:
 
 ---
 
-## REST API & CodeAssist Tool Integration
+## REST API
 
-Besides the web GUI, this project exposes a JSON API so external clients (e.g. the
-CodeAssist `musicgen` tool) can generate audio programmatically.
+Besides the web GUI, this project exposes a JSON API so external clients can generate
+audio programmatically.
 
 ### `POST /api/generate`
 
@@ -99,20 +99,19 @@ Failure returns `{ "status": "error", "message": "...", "details": "..." }` with
 The endpoint reuses the existing synthesis flow (`bin/ace-synth`, optional `bin/ace-lm`
 enhancement) and is synchronous - the response is returned once the WAV is ready.
 
-### CodeAssist `musicgen` tool
+## Client Integration
 
-A stock CodeAssist tool that calls this endpoint. It takes a `prompt` + structured
-`payload` (from the CodeAssist `music` skill), optional source/reference WAV paths, and an
-optional `batch_size`. For each batch item it re-sends the same payload with a new seed,
-downloads the WAV, and saves `prompt.txt`, `payload.json`, `output.wav`, and `meta.json`
-under `<workspace>/music_generations/<timestamp>/`. Config lives in `[musicgen]`
-(`host`/`port`/`timeout_seconds`) in `config.toml`; runtime `host`/`port` args override it.
+A client calls this endpoint with a `prompt` + structured `payload`, optional
+source/reference WAV paths (base64), and an optional `batch_size`. For each batch item it
+re-sends the same payload with a new seed, downloads the WAV, and saves `prompt.txt`,
+`payload.json`, `output.wav`, and `meta.json` under a per-run folder. Per-server config
+(`host`/`port`/`timeout_seconds`) lives in `config.toml`; runtime `host`/`port` override it.
 
 Backend reference: https://github.com/Nurb4000/acestep.cpp-simple-GUI
 
-### Pending / Future (relative to the API + tool)
+### Pending / Future (relative to the API)
 
 - **`/analyze_llm` via API** - feed reference audio into the LLM and return structured params (analysis today is GUI-only).
 - **`/enhance_external` via API** - route the external-LLM enhancement through the JSON API.
-- **`/generate_batch` via API** - server-side batch; the tool already batches client-side (new seed per item), so this is optional.
-- **`/generate_json` (save/load settings)** - redundant with the tool's saved `payload.json`; low priority.
+- **`/generate_batch` via API** - server-side batch; client-side batching (new seed per item) already covers this, so it is optional.
+- **`/generate_json` (save/load settings)** - redundant with saved `payload.json`; low priority.
